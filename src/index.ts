@@ -113,9 +113,10 @@ class E621Downloader extends EventEmitter<{
 			skipVideo: !!opts.skipVideo,
 			skipFlash: !!opts.skipFlash,
 			tagBlacklist: opts.tagBlacklist || [],
-			cacheFile: opts.cacheFile || `${__dirname}/cache.json`, // not sure how this will work in regular usage
+			cacheFile: opts.cacheFile || `${process.env.APPDATA || `${process.env.HOME}${process.platform === "darwin" ? "/Library/Preferences" : "/.config"}`}/e621downloader/cache.json`,
 			useCache: opts.useCache ?? true
 		};
+		if (!fs.existsSync(path.dirname(this.options.cacheFile))) fs.mkdirpSync(path.dirname(this.options.cacheFile));
 		if (!fs.existsSync(this.options.saveDirectory)) throw new TypeError(`saveDirectory "${this.options.saveDirectory}" does not exist on disk.`);
 		this.threads = new Map();
 		this.reset();

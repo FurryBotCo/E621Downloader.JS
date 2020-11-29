@@ -19,7 +19,7 @@ program
 	.option("--use-cache", "If the cache file should be used")
 	.option("--tags <tags>", "A space separated list of tags")
 	.option("--folder", "The folder inside of saveDirectory to save this download inside. Defaults to first tag.")
-	.option("--threads <num>", "The number of threads to use while downloading. A number between 1 and 3.", "3")
+	.option("--threads <num>", "The number of threads to use while downloading. A number between 1 and 3.", "1")
 	.parse(process.argv);
 
 if (process.argv.length === 2) program.help();
@@ -70,3 +70,4 @@ e
 	.on("download-start", (tags, folder, dir, threads) => console.log(`Started download with tags "${tags.join(" ")}" into directory "${dir}", with ${threads} threads.`))
 	.on("thread-spawn", (internalId, nodeId) => console.log(`Spawned thread #${internalId} (Worker ID: ${nodeId})`))
 	.startDownload(o.tags && o.tags.split(" "), o.folder, Number(o.threads) as any || 1);
+console.log(e.options.cacheFile);
