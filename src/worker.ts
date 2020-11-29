@@ -1,5 +1,5 @@
 import { parentPort, isMainThread } from "worker_threads";
-import { Options, Post } from ".";
+import { E621Downloader, Post } from ".";
 import * as fs from "fs-extra";
 import * as https from "https";
 import URL from "url";
@@ -12,7 +12,7 @@ export type ThreadOptions = {
 	total: number;
 	tags: string[];
 	folder: string;
-	options: Options;
+	options: E621Downloader["options"];
 	dir: string;
 };
 
@@ -21,9 +21,12 @@ class DownloaderThread {
 	static total: number;
 	static tags: string[];
 	static folder: string;
-	static options: Options;
+	static options: E621Downloader["options"];
 	static dir: string;
 	static posts: Post[];
+	static cache: {
+		[k: string]: number[]
+	};
 	static init(iOpt: ThreadOptions) {
 		this.id = iOpt.id;
 		this.total = iOpt.total;
@@ -32,12 +35,16 @@ class DownloaderThread {
 		this.options = iOpt.options;
 		this.dir = iOpt.dir;
 		this.posts = []; // we get these in start
+		try {
+			this.cache = JSON.parse(fs.readFileSync(this.options.cacheFile!).toString());
+		} catch (e) {
+			this.cache = {};
+		}
 		this.sendToParent("ready");
 	}
 
 	static async start(posts: Post[], range: [start: number, end: number]) {
 		this.posts = posts;
-		this.sendToParent("start-recieved", posts.length);
 		const start = performance.now();
 		for (const [i, p] of posts.entries()) await this.download(p, [range[0] + i, range[1]]);
 		const end = performance.now();
@@ -49,6 +56,9 @@ class DownloaderThread {
 		// so we can make the url if absent
 		let v = url;
 		if (v === null) v = this.constructURLFromMd5(md5);
+		if (fs.existsSync(`${this.dir}/${id}.${ext}`) && !this.options.overwriteExisting) return this.sendToParent("skip", id, "fileExists", range[0], range[1]);
+		else if (this.options.useCache && this.cache[this.tags.join(" ")] && this.cache[this.tags.join(" ")].includes(id)) return this.sendToParent("skip", id, "cache", range[0], range[1]);
+
 		return new Promise<void>((a, b) => {
 			const start = performance.now();
 			https

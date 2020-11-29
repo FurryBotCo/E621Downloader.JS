@@ -11,6 +11,7 @@ import { performance } from "perf_hooks";
 export interface Options extends Partial<Omit<E621Downloader["options"], "saveDirectory">> {
 	saveDirectory: E621Downloader["options"]["saveDirectory"];
 };
+
 export interface Post {
 	id: number;
 	url: string | null;
@@ -25,6 +26,7 @@ class E621Downloader extends EventEmitter<{
 	"start-recieved": (threadId: number, amount: number) => void;
 	"thread-done": (threadId: number, amount: number, time: number) => void;
 	"post-finish": (threadId: number, id: number, time: number, current: number, total: number) => void;
+	"skip": (threadId: number, id: number, reason: "cache" | "fileExists", current: number, total: number) => void;
 	"download-done": (total: number, time: number) => void;
 	"fetch-page": (page: number, count: number, time: number) => void;
 	"fetch-finish": (total: number, time: number) => void;
@@ -78,6 +80,14 @@ class E621Downloader extends EventEmitter<{
 		 * Tags to skip while downloading posts
 		 */
 		tagBlacklist: string[];
+		/**
+		 * The file to save the cache in
+		 */
+		cacheFile: string;
+		/**
+		 * If we should cache downloaded posts (the post ids)
+		 */
+		useCache: boolean;
 	};
 	threads: Map<number, Worker>;
 	private current: {
@@ -89,6 +99,8 @@ class E621Downloader extends EventEmitter<{
 		postsPerWorker: Map<number, number>;
 		start: number;
 		end: number;
+		posts: number[];
+		tags: string[];
 	};
 	constructor(opts: Options) {
 		super();
@@ -100,20 +112,13 @@ class E621Downloader extends EventEmitter<{
 			overwriteExisting: !!opts.overwriteExisting,
 			skipVideo: !!opts.skipVideo,
 			skipFlash: !!opts.skipFlash,
-			tagBlacklist: opts.tagBlacklist || []
-		}
+			tagBlacklist: opts.tagBlacklist || [],
+			cacheFile: opts.cacheFile || `${__dirname}/cache.json`, // not sure how this will work in regular usage
+			useCache: opts.useCache ?? true
+		};
 		if (!fs.existsSync(this.options.saveDirectory)) throw new TypeError(`saveDirectory "${this.options.saveDirectory}" does not exist on disk.`);
 		this.threads = new Map();
-		this.current = {
-			active: false,
-			resolve: null,
-			reject: null,
-			total: 0,
-			processed: 0,
-			postsPerWorker: new Map(),
-			start: 0,
-			end: 0
-		};
+		this.reset();
 	}
 
 	private get auth() { return this.options.auth === null ? null : ((this.options.auth as any).basic as string || Buffer.from(`${(this.options.auth as any).username}:${(this.options.auth as any).apiKey}`).toString("base64")) || null }
@@ -156,20 +161,38 @@ class E621Downloader extends EventEmitter<{
 		this.current.start = performance.now();
 		const list = await this.fetchPosts(tags, this.auth, 1, null);
 		if (list.length === 0) throw new TypeError(`No posts were found for the tag(s) "${tags.join(" ")}".`);
-		this.current.total = list.length;
+		Object.assign(this.current, {
+			total: list.length,
+			posts: list.map(l => l.id),
+			tags
+		});
 		const posts = chunk(list, Math.ceil(list.length / threads));
+		const cache = this.getCache();
 		for (const [i, w] of this.threads) {
 			this.current.postsPerWorker.set(i, posts[i].length);
 			w.postMessage({
 				event: "start",
 				data: posts[i],
-				range: this.count(posts, i)
+				range: this.count(posts, i),
+				cache
 			});
 		}
 
 		await new Promise<void>((resolve, reject) => Object.assign(this.current, { resolve, reject }));
 
 		return list.length;
+	}
+
+	getCache() {
+		let o: {
+			[k: string]: number[];
+		};
+		try {
+			o = JSON.parse(fs.readFileSync(this.options.cacheFile).toString());
+		} catch (e) {
+			o = {};
+		}
+		return o;
 	}
 
 	count(arr: any[], num: number): [start: number, end: number] {
@@ -193,7 +216,9 @@ class E621Downloader extends EventEmitter<{
 			processed: 0,
 			postsPerWorker: new Map(),
 			start: 0,
-			end: 0
+			end: 0,
+			posts: [],
+			tags: []
 		};
 	}
 
@@ -206,7 +231,8 @@ class E621Downloader extends EventEmitter<{
 		this.emit(value.event as any, value.fromId, ...value.data);
 	}
 
-	private endHandler(id: number) {
+	private async endHandler(id: number) {
+		await new Promise((a, b) => setTimeout(a, 100));
 		const p = this.current.postsPerWorker.get(id);
 		if (p === undefined) {
 			this.emit("error", `Worker done without post amount in Main (Worker #${id})`);
@@ -216,6 +242,16 @@ class E621Downloader extends EventEmitter<{
 			if (this.current.processed === this.current.total) {
 				this.current.end = performance.now();
 				this.emit("download-done", this.current.total, parseFloat((this.current.end - this.current.start).toFixed(3)));
+				if (this.options.useCache) {
+					const o = this.getCache();
+
+					if (!o[this.current.tags.join(" ")]) o[this.current.tags.join(" ")] = [];
+					o[this.current.tags.join(" ")].push(...this.current.posts);
+					o[this.current.tags.join(" ")] = Array.from(new Set(o[this.current.tags.join(" ")]));
+
+					fs.writeFileSync(this.options.cacheFile, JSON.stringify(o, null, "\t"));
+
+				}
 				this.current.resolve!();
 				this.reset();
 			}

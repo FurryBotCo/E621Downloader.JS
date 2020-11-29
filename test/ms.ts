@@ -64,6 +64,7 @@ export default function ms(time: number, words = false, seconds = true): string 
 	Object.keys(r).map(k => r[k] = Math.floor(r[k]));
 
 	const str: string[] = [];
+	if (time > 0) str.push(`${time.toFixed(0)} millisecond${time === 1 ? "" : "s"}`);
 	if (r.s > 0) str.push(`${r.s} second${r.s === 1 ? "" : "s"}`);
 	if (r.m > 0) str.push(`${r.m} minute${r.m === 1 ? "" : "s"}`);
 	if (r.h > 0) str.push(`${r.h} hour${r.h === 1 ? "" : "s"}`);
