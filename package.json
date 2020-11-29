@@ -1,0 +1,45 @@
+{
+	"name": "e621downloader.js",
+	"version": "1.0.0",
+	"description": "",
+	"main": "index.js",
+	"scripts": {
+		"test": "rm -rf build && tsc && ts-node test/main"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/FurryBotCo/E621Downloader.JS.git"
+	},
+	"keywords": [
+		"e621",
+		"e621-downloader",
+		"image-downloader",
+		"bulk-downloader",
+		"bulk-image-downloader"
+	],
+	"author": "Donovan_DMC",
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/FurryBotCo/E621Downloader.JS/issues"
+	},
+	"homepage": "https://github.com/FurryBotCo/E621Downloader.JS#readme",
+	"dependencies": {
+		"chunk": "0.0.3",
+		"commander": "^6.2.0",
+		"fs-extra": "^9.0.1",
+		"ms": "^2.1.2",
+		"source-map-support": "^0.5.19",
+		"tsee": "^1.3.2"
+	},
+	"bin": {
+		"e621downloader-cli": "./build/cli.js"
+	},
+	"devDependencies": {
+		"@types/chunk": "0.0.0",
+		"@types/fs-extra": "^9.0.4",
+		"@types/ms": "^0.7.31",
+		"@types/node": "^14.14.10",
+		"ts-node": "^9.0.0",
+		"typescript": "^4.1.2"
+	}
+}
