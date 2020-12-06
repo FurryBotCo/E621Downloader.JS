@@ -68,6 +68,6 @@ e
 	})
 	.on("fetch-page", (page, count, time) => console.log(`Finished fetching page #${page} in ${ms(time, true)} (had ${count} posts)`))
 	.on("download-start", (tags, folder, dir, threads) => console.log(`Started download with tags "${tags.join(" ")}" into directory "${dir}", with ${threads} threads.`))
-	.on("thread-spawn", (internalId, nodeId) => console.log(`Spawned thread #${internalId} (Worker ID: ${nodeId})`))
+	.on("thread-spawn", (id, workerId) => console.log(`Spawned thread #${id} (Worker ID: ${workerId})`))
 	.startDownload(o.tags && o.tags.split(" "), o.folder, Number(o.threads) as any || 1);
 console.log(e.options.cacheFile);

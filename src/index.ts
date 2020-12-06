@@ -31,7 +31,7 @@ class E621Downloader extends EventEmitter<{
 	"fetch-page": (page: number, count: number, time: number) => void;
 	"fetch-finish": (total: number, time: number) => void;
 	"download-start": (tags: string[], folder: string, dir: string, threads: 1 | 2 | 3, usingAuth: boolean) => void;
-	"thread-spawn": (internalId: number, nodeId: number) => void;
+	"thread-spawn": (id: number, workerId: number) => void;
 }> {
 	options: {
 		/**

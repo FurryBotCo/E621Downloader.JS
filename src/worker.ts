@@ -28,6 +28,7 @@ class DownloaderThread {
 		[k: string]: number[]
 	};
 	static init(iOpt: ThreadOptions) {
+		console.log(iOpt);
 		this.id = iOpt.id;
 		this.total = iOpt.total;
 		this.tags = iOpt.tags;
