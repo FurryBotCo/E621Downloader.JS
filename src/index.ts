@@ -30,7 +30,7 @@ class E621Downloader extends EventEmitter<{
 	"download-done": (total: number, time: number) => void;
 	"fetch-page": (page: number, count: number, time: number) => void;
 	"fetch-finish": (total: number, time: number) => void;
-	"download-start": (tags: string[], folder: string, dir: string, threads: 1 | 2 | 3) => void;
+	"download-start": (tags: string[], folder: string, dir: string, threads: 1 | 2 | 3, usingAuth: boolean) => void;
 	"thread-spawn": (internalId: number, nodeId: number) => void;
 }> {
 	options: {
@@ -140,7 +140,7 @@ class E621Downloader extends EventEmitter<{
 		folder = this.sanitizeFolderName(folder || tags[0]);
 		const dir = path.resolve(`${this.options.saveDirectory}/${folder}`);
 		if (!fs.existsSync(dir)) fs.mkdirSync(dir);
-		this.emit("download-start", tags, folder, dir, threads);
+		this.emit("download-start", tags, folder, dir, threads, this.auth !== null);
 
 		this.reset();
 		for (let i = 0; i < threads; i++) {
