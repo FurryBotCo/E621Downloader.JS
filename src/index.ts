@@ -22,7 +22,7 @@ export interface Post {
 
 class E621Downloader extends EventEmitter<{
 	"error": (err: Error | string, extra?: any) => void;
-	"ready": (threadId: number) => void;
+	"ready": (id: number, workerId: number) => void;
 	"start-recieved": (threadId: number, amount: number) => void;
 	"thread-done": (threadId: number, amount: number, time: number) => void;
 	"post-finish": (threadId: number, id: number, time: number, current: number, total: number) => void;

@@ -41,7 +41,7 @@ class DownloaderThread {
 		} catch (e) {
 			this.cache = {};
 		}
-		this.sendToParent("ready");
+		this.sendToParent("ready", this.id + 1);
 	}
 
 	static async start(posts: Post[], range: [start: number, end: number]) {
