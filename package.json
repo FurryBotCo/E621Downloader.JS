@@ -1,10 +1,11 @@
 {
 	"name": "e621downloader.js",
-	"version": "1.0.2",
+	"version": "1.0.3",
 	"description": "",
 	"main": "build/src/index.js",
 	"scripts": {
-		"test": "rm -rf build && tsc && ts-node test/main"
+		"build": "rm -rf build && tsc && echo Build Finished",
+		"prepare": "npm run build"
 	},
 	"repository": {
 		"type": "git",
