@@ -1,6 +1,5 @@
 import * as fs from "fs-extra";
 import E621Downloader from "..";
-import JSON5 from "json5";
 
 export interface Cache {
 	version: typeof CacheManager["VERSION"];
@@ -25,6 +24,7 @@ class OwOError extends Error {
 export default class CacheManager {
 	static VERSION = 1 as const;
 	file: string;
+	private RETRY = 0;
 	constructor(file: string) {
 		this.file = file;
 	}
@@ -34,10 +34,15 @@ export default class CacheManager {
 		let o: Cache, v;
 		try {
 			v = fs.readFileSync(this.file).toString();
-			o = JSON5.parse(v);
+			o = JSON.parse(v);
 			if (typeof o.version !== "number") throw new OwOError("OwO *notices your invalid cache file*");
 		} catch (e) {
 			console.error("Error parsing cache file:", e);
+			if (this.RETRY <= 3 && e.message.indexOf("Unexpected end of JSON input") !== -1) {
+				this.RETRY++;
+				console.log(`[${this.RETRY}/3] Trying again..`);
+				return this.get();
+			}
 			if (fs.existsSync(this.file)) fs.renameSync(this.file, `${this.file}-${Date.now()}.old`);
 			let d: Cache["data"];
 			// this assumes the file is using the old `{ key: string[] }` format
@@ -53,6 +58,7 @@ export default class CacheManager {
 			};
 			fs.writeFileSync(this.file, JSON.stringify(o, null, "\t"));
 		}
+		this.RETRY = 0;
 
 		return o;
 	}
@@ -82,6 +88,6 @@ export default class CacheManager {
 
 	unique<T>(...v: T[]): T[] {
 		// we have to stringify & parse because of objects and such
-		return Array.from(new Set(v.map(j => JSON.stringify(j)))).map(v => JSON5.parse(v));
+		return Array.from(new Set(v.map(j => JSON.stringify(j)))).map(v => JSON.parse(v));
 	}
 }
