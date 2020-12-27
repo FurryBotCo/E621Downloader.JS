@@ -42,7 +42,6 @@ export default class CacheManager {
 			o = JSON.parse(v);
 			if (typeof o.version !== "number") throw new OwOError("OwO *notices your invalid cache file*");
 		} catch (e) {
-			console.error("Error parsing cache file:", e);
 			if (e.message.indexOf("Unexpected end of JSON input") !== -1 && v!.length === 0) {
 				const st = fs.statSync(this.file);
 				if (st.size !== 0) {
@@ -51,7 +50,7 @@ export default class CacheManager {
 					deasync(this.waitForNodeToNotBeStupid)();
 					return this.get();
 				}
-			}
+			} else console.error("Error parsing cache file:", e);
 			if (fs.existsSync(this.file)) fs.renameSync(this.file, `${this.file}-${Date.now()}.old`);
 			let d: Cache["data"];
 			// this assumes the file is using the old `{ key: string[] }` format
