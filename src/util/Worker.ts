@@ -63,15 +63,16 @@ class Worker {
 		// so we can make the url if absent
 		let v = url;
 		if (v === null) v = this.constructURLFromMd5(md5);
-		if (fs.existsSync(`${this.dir}/${id}.${ext}`) && !this.options.overwriteExisting) {
-			this.current++;
-			this.donePosts.push(info);
-			return this.sendToParent("skip", id, "fileExists", range[0], range[1]);
-		}
-		else if (this.options.useCache && this.cached(id)) {
+
+		if (this.options.useCache && this.cached(id)) {
 			this.current++;
 			this.donePosts.push(info);
 			return this.sendToParent("skip", id, "cache", range[0], range[1]);
+		}
+		else if (fs.existsSync(`${this.dir}/${id}.${ext}`) && !this.options.overwriteExisting) {
+			this.current++;
+			this.donePosts.push(info);
+			return this.sendToParent("skip", id, "fileExists", range[0], range[1]);
 		}
 		else if (ext === "swf") {
 			this.current++;
