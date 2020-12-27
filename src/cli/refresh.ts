@@ -51,12 +51,13 @@ function refresh(o: { [k: string]: any; }) {
 		.on("skip", (threadId, id, reason, current, total) => {
 			p.increment(1);
 			i++;
-			log(`[${i}/${t}]: Skipped post #${id} due to ${reason === "cache" ? "it being cached" :
+			// because it can break stuff
+			/* log(`[${i}/${t}]: Skipped post #${id} due to ${reason === "cache" ? "it being cached" :
 				reason === "video" ? "it being a video, and skipVideo being true" :
 					reason === "flash" ? "it being flash, and skipFlash being true" :
 						reason === "fileExists" ? "the file existing, and overwriteExisting being set to false" :
 							"unknown reasons"
-				}.`);
+				}.`); */
 		})
 		.on("download-done", (total, time) => {
 			p.stop();
