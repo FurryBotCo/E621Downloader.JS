@@ -64,7 +64,7 @@ export default class CacheManager {
 				version: 1,
 				data: d! ?? []
 			};
-			fs.writeFileSync(this.file, JSON.stringify(o, null, "\t"));
+			fs.writeFileSync(this.file, JSON.stringify(o));
 		}
 		this.RETRY = 0;
 
@@ -89,7 +89,7 @@ export default class CacheManager {
 			...posts
 		]);
 		c.data[c.data.indexOf(j!) ?? c.data.length] = v;
-		fs.writeFileSync(this.file, JSON.stringify(c, null, "\t"));
+		fs.writeFileSync(this.file, JSON.stringify(c));
 	}
 
 

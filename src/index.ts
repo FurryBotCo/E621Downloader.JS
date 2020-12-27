@@ -14,6 +14,15 @@ export interface Options extends Partial<Omit<E621Downloader["options"], "saveDi
 	saveDirectory: E621Downloader["options"]["saveDirectory"];
 };
 
+export class E621Error<T extends string> extends Error {
+	code: T;
+	constructor(code: T, message?: string) {
+		super(message);
+		this.code = code;
+		this.name = "E621Error";
+	}
+}
+
 export interface Post {
 	id: number;
 	url: string | null;
@@ -152,10 +161,10 @@ class E621Downloader extends EventEmitter<{
 	async startDownload(tags: string[], folder?: string, threads: (1 | 2 | 3) = 1) {
 		if (!tags || tags.length === 0) throw new TypeError("A list of tags is required.");
 		// bravo if you manage to hit this without doing it on purpose
-		if (tags.length > 40) throw new TypeError("A maximum of 40 tags are allowed.");
-		if (this.current.active) throw new TypeError("A download is already active. If this is an issue, run the `reset` function.");
-		if (isNaN(threads) || !threads || threads < 1) throw new Text("Threads must be a number between 1 and 3.");
-		if (threads > 3) throw new TypeError("You cannot use more than 3 threads. This is a limit that an e621 admin asked us to put in place. See https://e621.download/threads.png")
+		if (tags.length > 40) throw new E621Error("ERR_MAX_TAGS", "A maximum of 40 tags are allowed.");
+		if (this.current.active) throw new E621Error("ERR_ALREADY_ACTIVE", "A download is already active. If this is an issue, run the `reset` function.");
+		if (isNaN(threads) || !threads || threads < 1) throw new E621Error("ERR_INVALID_THREADS", "Threads must be a number between 1 and 3.");
+		if (threads > 3) throw new E621Error("ERR_INVALID_THREADS_2", "You cannot use more than 3 threads. This is a limit that an e621 admin asked us to put in place. See https://e621.download/threads.png")
 		folder = this.sanitizeFolderName(folder || tags[0]);
 		const dir = path.resolve(`${this.options.saveDirectory}/${folder}`);
 		if (!fs.existsSync(dir)) fs.mkdirSync(dir);
@@ -184,7 +193,7 @@ class E621Downloader extends EventEmitter<{
 
 		this.current.start = performance.now();
 		const list = await this.fetchPosts(tags, this.auth, 1, null);
-		if (list.length === 0) throw new TypeError(`No posts were found for the tag(s) "${tags.join(" ")}".`);
+		if (list.length === 0) throw new E621Error("NO_POSTS", `No posts were found for the tag(s) "${tags.join(" ")}".`);
 		Object.assign(this.current, {
 			total: list.length,
 			posts: list.map(l => ({
