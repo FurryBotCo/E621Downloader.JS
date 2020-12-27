@@ -1,5 +1,6 @@
 import * as fs from "fs-extra";
 import E621Downloader from "..";
+import deasync from "deasync";
 
 export interface Cache {
 	version: typeof CacheManager["VERSION"];
@@ -29,19 +30,27 @@ export default class CacheManager {
 		this.file = file;
 	}
 
+	async waitForNodeToNotBeStupid(cb: (err: Error | null, res: void) => void) {
+		return new Promise((a, b) => setTimeout(() => cb(null), 1e3));
+	}
+
 	get() {
 		if (!this.file) throw new TypeError("Invalid cache file.");
-		let o: Cache, v;
+		let o: Cache, v: string;
 		try {
 			v = fs.readFileSync(this.file).toString();
 			o = JSON.parse(v);
 			if (typeof o.version !== "number") throw new OwOError("OwO *notices your invalid cache file*");
 		} catch (e) {
 			console.error("Error parsing cache file:", e);
-			if (this.RETRY <= 3 && e.message.indexOf("Unexpected end of JSON input") !== -1) {
-				this.RETRY++;
-				console.log(`[${this.RETRY}/3] Trying again..`);
-				return this.get();
+			if (e.message.indexOf("Unexpected end of JSON input") !== -1 && v!.length === 0) {
+				const st = fs.statSync(this.file);
+				if (st.size !== 0) {
+					this.RETRY++;
+					console.log(`[${this.RETRY}] Node told us the cache file is empty when it's not.. trying again in 1000ms`);
+					deasync(this.waitForNodeToNotBeStupid)();
+					return this.get();
+				}
 			}
 			if (fs.existsSync(this.file)) fs.renameSync(this.file, `${this.file}-${Date.now()}.old`);
 			let d: Cache["data"];
