@@ -1,11 +1,13 @@
 import { parentPort, isMainThread } from "worker_threads";
-import { E621Downloader, Post } from ".";
+import { E621Downloader, Post } from "..";
 import * as fs from "fs-extra";
 import * as https from "https";
 import URL from "url";
-import * as pkg from "../package.json";
+import * as pkg from "../../package.json";
 import { performance } from "perf_hooks";
 import "source-map-support/register";
+import CacheManager from "./CacheManager";
+import { timingSafeEqual } from "crypto";
 
 export type ThreadOptions = {
 	id: number;
@@ -16,7 +18,7 @@ export type ThreadOptions = {
 	dir: string;
 };
 
-class DownloaderThread {
+class Worker {
 	static id: number;
 	static total: number;
 	static tags: string[];
@@ -24,11 +26,10 @@ class DownloaderThread {
 	static options: E621Downloader["options"];
 	static dir: string;
 	static posts: Post[];
-	static cache: {
-		[k: string]: number[]
-	};
+	static cache: CacheManager;
+	static current = 0;
+	static donePosts: Post[];
 	static init(iOpt: ThreadOptions) {
-		console.log(iOpt);
 		this.id = iOpt.id;
 		this.total = iOpt.total;
 		this.tags = iOpt.tags;
@@ -36,11 +37,8 @@ class DownloaderThread {
 		this.options = iOpt.options;
 		this.dir = iOpt.dir;
 		this.posts = []; // we get these in start
-		try {
-			this.cache = JSON.parse(fs.readFileSync(this.options.cacheFile!).toString());
-		} catch (e) {
-			this.cache = {};
-		}
+		this.donePosts = [];
+		if (this.options.useCache) this.cache = new CacheManager(this.options.cacheFile);
 		this.sendToParent("ready", this.id + 1);
 	}
 
@@ -48,8 +46,16 @@ class DownloaderThread {
 		this.posts = posts;
 		const start = performance.now();
 		for (const [i, p] of posts.entries()) await this.download(p, [range[0] + i, range[1]]);
+		if (this.options.useCache) this.cache.update(this.tags, this.donePosts.map(v => ({ id: v.id, md5: v.md5 })), this.folder);
 		const end = performance.now();
 		this.sendToParent("thread-done", posts.length, parseFloat((end - start).toFixed(3)));
+	}
+
+	static get cacheObj() { return this.cache.get().data.find(v => v.tags.join(" ").toLowerCase() === this.tags.join(" ").toLowerCase()) }
+	static cached(id: number) {
+		const c = this.cacheObj?.posts?.map(v => v.id);
+		if (!c || c.length === 0) return false;
+		return c.includes(id);
 	}
 
 	static async download(info: Post, range: [start: number, end: number]) {
@@ -58,7 +64,7 @@ class DownloaderThread {
 		let v = url;
 		if (v === null) v = this.constructURLFromMd5(md5);
 		if (fs.existsSync(`${this.dir}/${id}.${ext}`) && !this.options.overwriteExisting) return this.sendToParent("skip", id, "fileExists", range[0], range[1]);
-		else if (this.options.useCache && this.cache[this.tags.join(" ")] && this.cache[this.tags.join(" ")].includes(id)) return this.sendToParent("skip", id, "cache", range[0], range[1]);
+		else if (this.options.useCache && this.cached(id)) return this.sendToParent("skip", id, "cache", range[0], range[1]);
 		else if (ext === "swf") return this.sendToParent("skip", id, "flash", range[0], range[1]);
 		else if (ext === "webm") return this.sendToParent("skip", id, "video", range[0], range[1]);
 
@@ -76,6 +82,9 @@ class DownloaderThread {
 						.on("error", b)
 						.on("data", (d) => data.push(d))
 						.on("end", () => {
+							this.current++;
+							this.donePosts.push(info);
+							if (this.options.useCache && (this.current % 10) === 0) this.cache.update(this.tags, this.donePosts.map(v => ({ id: v.id, md5: v.md5 })), this.folder);
 							const end = performance.now();
 							fs.writeFileSync(`${this.dir}/${id}.${ext}`, Buffer.concat(data));
 							this.sendToParent("post-finish", id, parseFloat((end - start).toFixed(3)), range[0], range[1]);
@@ -103,8 +112,8 @@ class DownloaderThread {
 if (!isMainThread) {
 	parentPort!.on("message", (value) => {
 		switch (value.event) {
-			case "init": return DownloaderThread.init(value.data);
-			case "start": return DownloaderThread.start(value.data, value.range);
+			case "init": return Worker.init(value.data);
+			case "start": return Worker.start(value.data, value.range);
 		}
 	});
 }

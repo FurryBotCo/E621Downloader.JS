@@ -1,6 +1,6 @@
 {
 	"name": "e621downloader.js",
-	"version": "1.0.7",
+	"version": "1.0.8",
 	"description": "",
 	"main": "build/src/index.js",
 	"scripts": {
@@ -30,11 +30,12 @@
 		"cli-progress": "^3.8.2",
 		"commander": "^6.2.0",
 		"fs-extra": "^9.0.1",
+		"json5": "^2.1.3",
 		"source-map-support": "^0.5.19",
 		"tsee": "^1.3.2"
 	},
 	"bin": {
-		"e621downloader-cli": "./build/src/cli.js"
+		"e621downloader-cli": "./build/src/cli/main.js"
 	},
 	"devDependencies": {
 		"@types/chunk": "0.0.0",

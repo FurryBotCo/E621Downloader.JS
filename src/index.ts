@@ -7,6 +7,8 @@ import chunk from "chunk";
 import pkg from "../package.json";
 import "source-map-support/register";
 import { performance } from "perf_hooks";
+import CacheManager from "./util/CacheManager";
+import RefreshManager from "./util/RefreshManager";
 
 export interface Options extends Partial<Omit<E621Downloader["options"], "saveDirectory">> {
 	saveDirectory: E621Downloader["options"]["saveDirectory"];
@@ -90,6 +92,10 @@ class E621Downloader extends EventEmitter<{
 		useCache: boolean;
 	};
 	threads: Map<number, Worker>;
+	private managers: {
+		cache: CacheManager;
+		refresh: RefreshManager;
+	};
 	private current: {
 		active: boolean;
 		resolve: (() => void) | null;
@@ -99,8 +105,12 @@ class E621Downloader extends EventEmitter<{
 		postsPerWorker: Map<number, number>;
 		start: number;
 		end: number;
-		posts: number[];
+		posts: {
+			id: number;
+			md5: string;
+		}[];
 		tags: string[];
+		folder: string | null;
 	};
 	constructor(opts: Options) {
 		super();
@@ -120,7 +130,16 @@ class E621Downloader extends EventEmitter<{
 		if (!fs.existsSync(this.options.saveDirectory)) throw new TypeError(`saveDirectory "${this.options.saveDirectory}" does not exist on disk.`);
 		this.threads = new Map();
 		this.reset();
+		const cache = new CacheManager(this.options.cacheFile);
+		this.managers = {
+			cache,
+			refresh: undefined as any // we have to do this weird due to the way RefreshManager works
+		};
+		this.managers.refresh = new RefreshManager(this);
 	}
+
+	get cache() { return this.managers.cache; }
+	get refresh() { return this.managers.refresh; }
 
 	private get auth() { return this.options.auth === null ? null : ((this.options.auth as any).basic as string || Buffer.from(`${(this.options.auth as any).username}:${(this.options.auth as any).apiKey}`).toString("base64")) || null }
 
@@ -142,9 +161,9 @@ class E621Downloader extends EventEmitter<{
 		if (!fs.existsSync(dir)) fs.mkdirSync(dir);
 		this.emit("download-start", tags, folder, dir, threads, this.auth !== null);
 
-		this.reset();
+		this.reset(folder);
 		for (let i = 0; i < threads; i++) {
-			const w = new Worker(`${__dirname}/worker.${__filename.split(".").slice(-1)[0]}`);
+			const w = new Worker(`${__dirname}/util/Worker.${__filename.split(".").slice(-1)[0]}`);
 			this.threads.set(i, w);
 			w
 				.on("message", this.handleWorkerMessage.bind(this))
@@ -168,36 +187,25 @@ class E621Downloader extends EventEmitter<{
 		if (list.length === 0) throw new TypeError(`No posts were found for the tag(s) "${tags.join(" ")}".`);
 		Object.assign(this.current, {
 			total: list.length,
-			posts: list.map(l => l.id),
+			posts: list.map(l => ({
+				id: l.id,
+				md5: l.md5
+			})),
 			tags
 		});
 		const posts = chunk(list, Math.ceil(list.length / threads));
-		const cache = this.getCache();
 		for (const [i, w] of this.threads) {
 			this.current.postsPerWorker.set(i, posts[i].length);
 			w.postMessage({
 				event: "start",
 				data: posts[i],
-				range: this.count(posts, i),
-				cache
+				range: this.count(posts, i)
 			});
 		}
 
 		await new Promise<void>((resolve, reject) => Object.assign(this.current, { resolve, reject }));
 
 		return list.length;
-	}
-
-	getCache() {
-		let o: {
-			[k: string]: number[];
-		};
-		try {
-			o = JSON.parse(fs.readFileSync(this.options.cacheFile).toString());
-		} catch (e) {
-			o = {};
-		}
-		return o;
 	}
 
 	count(arr: any[], num: number): [start: number, end: number] {
@@ -207,7 +215,8 @@ class E621Downloader extends EventEmitter<{
 		return [a + 1, b];
 	}
 
-	reset() {
+	reset(folder?: string | null) {
+		if (!folder) folder = null;
 		for (const [i, w] of this.threads) {
 			w.terminate();
 			this.threads.delete(i);
@@ -223,7 +232,8 @@ class E621Downloader extends EventEmitter<{
 			start: 0,
 			end: 0,
 			posts: [],
-			tags: []
+			tags: [],
+			folder
 		};
 	}
 
@@ -247,25 +257,18 @@ class E621Downloader extends EventEmitter<{
 			if (this.current.processed === this.current.total) {
 				this.current.end = performance.now();
 				this.emit("download-done", this.current.total, parseFloat((this.current.end - this.current.start).toFixed(3)));
-				if (this.options.useCache) {
-					const o = this.getCache();
-
-					if (!o[this.current.tags.join(" ")]) o[this.current.tags.join(" ")] = [];
-					o[this.current.tags.join(" ")].push(...this.current.posts);
-					o[this.current.tags.join(" ")] = Array.from(new Set(o[this.current.tags.join(" ")]));
-
-					fs.writeFileSync(this.options.cacheFile, JSON.stringify(o, null, "\t"));
-
-				}
+				if (this.options.useCache) this.cache.update(this.current.tags, this.current.posts, this.current.folder || this.current.tags[0]);
 				this.current.resolve!();
 				this.reset();
 			}
 		}
 	}
 
-	private sanitizeFolderName(name: string) {
+	static sanitizeFolderName(name: string) {
 		return name.replace(/[^a-z0-9_\-]/gi, "_").replace(/_{2,}/g, "_").toLowerCase().trim();
 	}
+
+	get sanitizeFolderName() { return E621Downloader.sanitizeFolderName; }
 
 	private async fetchPosts(tags: string[], auth: string | null, page: number, lastId?: number | null) {
 		const posts: Post[] = [];
