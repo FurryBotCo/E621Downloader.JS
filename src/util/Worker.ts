@@ -63,10 +63,26 @@ class Worker {
 		// so we can make the url if absent
 		let v = url;
 		if (v === null) v = this.constructURLFromMd5(md5);
-		if (fs.existsSync(`${this.dir}/${id}.${ext}`) && !this.options.overwriteExisting) return this.sendToParent("skip", id, "fileExists", range[0], range[1]);
-		else if (this.options.useCache && this.cached(id)) return this.sendToParent("skip", id, "cache", range[0], range[1]);
-		else if (ext === "swf") return this.sendToParent("skip", id, "flash", range[0], range[1]);
-		else if (ext === "webm") return this.sendToParent("skip", id, "video", range[0], range[1]);
+		if (fs.existsSync(`${this.dir}/${id}.${ext}`) && !this.options.overwriteExisting) {
+			this.current++;
+			this.donePosts.push(info);
+			return this.sendToParent("skip", id, "fileExists", range[0], range[1]);
+		}
+		else if (this.options.useCache && this.cached(id)) {
+			this.current++;
+			this.donePosts.push(info);
+			return this.sendToParent("skip", id, "cache", range[0], range[1]);
+		}
+		else if (ext === "swf") {
+			this.current++;
+			this.donePosts.push(info);
+			return this.sendToParent("skip", id, "flash", range[0], range[1]);
+		}
+		else if (ext === "webm") {
+			this.current++;
+			this.donePosts.push(info);
+			return this.sendToParent("skip", id, "video", range[0], range[1]);
+		}
 
 		return new Promise<void>((a, b) => {
 			const start = performance.now();
