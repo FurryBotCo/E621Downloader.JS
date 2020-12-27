@@ -58,6 +58,12 @@ class Worker {
 		return c.includes(id);
 	}
 
+	static addToCache(post: Post) {
+		this.current++;
+		this.donePosts.push(post);
+		if (this.options.useCache && (this.current % 10) === 0) this.cache.update(this.tags, this.donePosts.map(v => ({ id: v.id, md5: v.md5 })), this.folder);
+	}
+
 	static async download(info: Post, range: [start: number, end: number]) {
 		const { id, url, md5, ext } = info;
 		// so we can make the url if absent
@@ -65,23 +71,19 @@ class Worker {
 		if (v === null) v = this.constructURLFromMd5(md5);
 
 		if (this.options.useCache && this.cached(id)) {
-			this.current++;
-			this.donePosts.push(info);
+			this.addToCache(info);
 			return this.sendToParent("skip", id, "cache", range[0], range[1]);
 		}
 		else if (fs.existsSync(`${this.dir}/${id}.${ext}`) && !this.options.overwriteExisting) {
-			this.current++;
-			this.donePosts.push(info);
+			this.addToCache(info);
 			return this.sendToParent("skip", id, "fileExists", range[0], range[1]);
 		}
 		else if (ext === "swf") {
-			this.current++;
-			this.donePosts.push(info);
+			this.addToCache(info);
 			return this.sendToParent("skip", id, "flash", range[0], range[1]);
 		}
 		else if (ext === "webm") {
-			this.current++;
-			this.donePosts.push(info);
+			this.addToCache(info);
 			return this.sendToParent("skip", id, "video", range[0], range[1]);
 		}
 
@@ -99,9 +101,7 @@ class Worker {
 						.on("error", b)
 						.on("data", (d) => data.push(d))
 						.on("end", () => {
-							this.current++;
-							this.donePosts.push(info);
-							if (this.options.useCache && (this.current % 10) === 0) this.cache.update(this.tags, this.donePosts.map(v => ({ id: v.id, md5: v.md5 })), this.folder);
+							this.addToCache(info);
 							const end = performance.now();
 							fs.writeFileSync(`${this.dir}/${id}.${ext}`, Buffer.concat(data));
 							this.sendToParent("post-finish", id, parseFloat((end - start).toFixed(3)), range[0], range[1]);
