@@ -50,7 +50,10 @@ export default class CacheManager {
 					deasync(this.waitForNodeToNotBeStupid)();
 					return this.get();
 				}
-			} else console.error("Error parsing cache file:", e);
+			} else {
+				if (e.message.indexOf("ENOENT")) console.log("Cache file does not exist, creating it..");
+				console.error("Error parsing cache file:", e);
+			}
 			if (fs.existsSync(this.file)) fs.renameSync(this.file, `${this.file}-${Date.now()}.old`);
 			let d: Cache["data"];
 			// this assumes the file is using the old `{ key: string[] }` format
@@ -64,7 +67,7 @@ export default class CacheManager {
 				version: 1,
 				data: d! ?? []
 			};
-			fs.writeFileSync(this.file, JSON.stringify(o));
+			fs.writeFileSync(this.file, JSON.stringify(o, null, "\t"));
 		}
 		this.RETRY = 0;
 
@@ -75,7 +78,7 @@ export default class CacheManager {
 		if (Array.isArray(tags)) tags = tags.join(" ");
 		const c = this.get();
 		const j = c.data.find(v => v.tags.join(" ") === tags);
-		// if (j) c.data.splice(c.data.indexOf(j), 1);
+		if (j) c.data.splice(c.data.indexOf(j), 1);
 		const v = j || {
 			tags: tags.split(" "),
 			lastDownloaded: 0,
@@ -88,8 +91,8 @@ export default class CacheManager {
 			...v.posts,
 			...posts
 		]);
-		c.data[c.data.indexOf(j!) ?? c.data.length] = v;
-		fs.writeFileSync(this.file, JSON.stringify(c));
+		c.data.push(v);
+		fs.writeFileSync(this.file, JSON.stringify(c, null, "\t"));
 	}
 
 
