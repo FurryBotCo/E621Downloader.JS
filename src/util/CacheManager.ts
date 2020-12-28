@@ -53,9 +53,14 @@ export default class CacheManager {
 				}
 			} else {
 				if (e.message.indexOf("ENOENT") !== -1) console.log("Cache file does not exist, creating it..");
-				else console.error("Error parsing cache file:", e);
+				else {
+					console.log("Reported cache file size:", v!.length);
+					console.log(v!);
+					fs.writeFileSync("/home/donovan/Projects/E621Downloader.JS/tmp", v!);
+					console.error("Error parsing cache file:", e);
+				}
 			}
-			if (fs.existsSync(this.file)) fs.renameSync(this.file, `${this.file.replace(/\.json/, "")}-${Date.now()}.old.json`);
+			if (fs.existsSync(this.file)) fs.renameSync(this.file, `${this.file.replace(/\.json/, "")}-${Date.now()}-${crypto.randomBytes(10).toString("hex")}.old.json`);
 			let d: Cache["data"];
 			// this assumes the file is using the old `{ key: string[] }` format
 			if (e instanceof OwOError && o!) d = Object.keys(o as any).map(v => ({
@@ -68,7 +73,7 @@ export default class CacheManager {
 				version: 1,
 				data: d! ?? []
 			};
-			fs.writeFileSync(this.file, JSON.stringify(o, null, "\t"));
+			fs.writeFileSync(this.file, JSON.stringify(o));
 		}
 		this.RETRY = 0;
 
@@ -98,7 +103,7 @@ export default class CacheManager {
 		// just in case
 		c.data = this.unique(...c.data);
 		if (JSON.stringify(c) === JSON.stringify(o)) return; // don't touch the file if we don't need to
-		fs.writeFileSync(this.file, JSON.stringify(c, null, "\t"));
+		fs.writeFileSync(this.file, JSON.stringify(c));
 	}
 
 
