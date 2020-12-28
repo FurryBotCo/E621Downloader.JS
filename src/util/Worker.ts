@@ -46,7 +46,7 @@ class Worker {
 		this.posts = posts;
 		const start = performance.now();
 		for (const [i, p] of posts.entries()) await this.download(p, [range[0] + i, range[1]]);
-		if (this.options.useCache) this.cache.update(this.tags, this.donePosts.map(v => ({ id: v.id, md5: v.md5 })), this.folder);
+		if (this.options.useCache) this.updateCache();
 		const end = performance.now();
 		this.sendToParent("thread-done", posts.length, parseFloat((end - start).toFixed(3)));
 	}
@@ -58,10 +58,14 @@ class Worker {
 		return c.includes(id);
 	}
 
+	static updateCache() {
+		this.sendToParent("cache-update", this.tags, this.donePosts.map(v => ({ id: v.id, md5: v.md5 })), this.folder);
+	}
+
 	static addToCache(post: Post) {
 		this.current++;
 		this.donePosts.push(post);
-		if (this.options.useCache && (this.current % 10) === 0) this.cache.update(this.tags, this.donePosts.map(v => ({ id: v.id, md5: v.md5 })), this.folder);
+		if (this.options.useCache && (this.current % 10) === 0) this.updateCache();
 	}
 
 	static async download(info: Post, range: [start: number, end: number]) {

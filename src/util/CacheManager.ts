@@ -51,10 +51,10 @@ export default class CacheManager {
 					return this.get();
 				}
 			} else {
-				if (e.message.indexOf("ENOENT")) console.log("Cache file does not exist, creating it..");
-				console.error("Error parsing cache file:", e);
+				if (e.message.indexOf("ENOENT") !== -1) console.log("Cache file does not exist, creating it..");
+				else console.error("Error parsing cache file:", e);
 			}
-			if (fs.existsSync(this.file)) fs.renameSync(this.file, `${this.file}-${Date.now()}.old`);
+			if (fs.existsSync(this.file)) fs.renameSync(this.file, `${this.file.replace(/\.json/, "")}-${Date.now()}.old.json`);
 			let d: Cache["data"];
 			// this assumes the file is using the old `{ key: string[] }` format
 			if (e instanceof OwOError && o!) d = Object.keys(o as any).map(v => ({

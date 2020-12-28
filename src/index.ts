@@ -44,6 +44,7 @@ class E621Downloader extends EventEmitter<{
 	"fetch-finish": (total: number, time: number) => void;
 	"download-start": (tags: string[], folder: string, dir: string, threads: 1 | 2 | 3, usingAuth: boolean) => void;
 	"thread-spawn": (id: number, workerId: number) => void;
+	"cache-update": (threadId: number, ...args: Parameters<CacheManager["update"]>) => void;
 }> {
 	options: {
 		/**
@@ -133,7 +134,7 @@ class E621Downloader extends EventEmitter<{
 			skipVideo: !!opts.skipVideo,
 			skipFlash: !!opts.skipFlash,
 			tagBlacklist: opts.tagBlacklist || [],
-			cacheFile: opts.cacheFile || `${process.env.APPDATA || `${process.env.HOME}${process.platform === "darwin" ? "/Library/Preferences" : "/.config"}`}/e621downloader/cache.json`,
+			cacheFile: opts.cacheFile || path.resolve(`${opts.saveDirectory}${opts.saveDirectory.endsWith("E621Downloader/Files") ? "/.." : ""}/cache.json`),
 			useCache: opts.useCache ?? true
 		};
 		if (!fs.existsSync(path.dirname(this.options.cacheFile))) fs.mkdirpSync(path.dirname(this.options.cacheFile));
@@ -255,7 +256,23 @@ class E621Downloader extends EventEmitter<{
 		data: any[];
 	}) {
 		if (value.event === "thread-done") this.endHandler(value.fromId);
+		switch (value.event) {
+			case "cache-update": {
+				(this.cacheUpdateHandler as any)(...value.data);
+				break;
+			}
+
+			case "thread-done": {
+				this.endHandler(value.fromId);
+				break;
+			}
+		}
+
 		this.emit(value.event as any, value.fromId, ...value.data);
+	}
+
+	private get cacheUpdateHandler(): CacheManager["update"] {
+		return this.cache.update.bind(this.cache);
 	}
 
 	private async endHandler(id: number) {
