@@ -1,6 +1,6 @@
 {
 	"name": "e621downloader.js",
-	"version": "1.0.19",
+	"version": "1.0.21",
 	"description": "",
 	"main": "build/src/index.js",
 	"scripts": {

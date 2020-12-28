@@ -58,10 +58,10 @@ export default class CacheManager {
 				version: 1,
 				data: d! ?? []
 			};
-			fs.writeJsonSync(this.file, o, {
-				spaces: 4,
-				EOL: "\n"
-			});
+			const fd = fs.openSync(this.file, "r+");
+			fs.writeFileSync(fd, JSON.stringify(o, null, "\t"));
+			fs.fsyncSync(fd);
+			fs.closeSync(fd);
 		}
 		this.RETRY = 0;
 
@@ -91,10 +91,10 @@ export default class CacheManager {
 		// just in case
 		c.data = this.unique(...c.data);
 		if (JSON.stringify(c) === JSON.stringify(o)) return; // don't touch the file if we don't need to
-		fs.writeJsonSync(this.file, c, {
-			spaces: 4,
-			EOL: "\n"
-		});
+		const fd = fs.openSync(this.file, "r+");
+		fs.writeFileSync(fd, JSON.stringify(c, null, "\t"));
+		fs.fsyncSync(fd);
+		fs.closeSync(fd);
 	}
 
 
