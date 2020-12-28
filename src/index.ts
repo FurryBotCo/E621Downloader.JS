@@ -15,7 +15,7 @@ export interface Options extends Partial<Omit<E621Downloader["options"], "saveDi
 };
 
 export type VALID_ERROR_CODES = `ERR_${"MAX_TAGS" | "ALREADY_ACTIVE" | "INVALID_THREADS" | "INVALID_THREADS_2" | "NO_POSTS"}`;
-export class E621Error<T extends VALID_ERROR_CODES> extends Error {
+export class E621Error<T extends VALID_ERROR_CODES = VALID_ERROR_CODES> extends Error {
 	code: T;
 	constructor(code: T, message?: string) {
 		super(message);
