@@ -218,6 +218,8 @@ class E621Downloader extends EventEmitter<{
 		return list.length;
 	}
 
+	get stopDownload() { return this.reset; }
+
 	count(arr: any[], num: number): [start: number, end: number] {
 		let a = 0, b = 0;
 		for (let i = 0; i < num; i++) a += arr[i].length;
