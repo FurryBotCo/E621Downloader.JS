@@ -59,7 +59,7 @@ export default class CacheManager {
 				data: d! ?? []
 			};
 			const fd = fs.openSync(this.file, "r+");
-			fs.writeFileSync(fd, JSON.stringify(o, null, "\t"));
+			fs.writeFileSync(fd, JSON.stringify(o));
 			fs.fsyncSync(fd);
 			fs.closeSync(fd);
 		}
@@ -92,7 +92,7 @@ export default class CacheManager {
 		c.data = this.unique(...c.data);
 		if (JSON.stringify(c) === JSON.stringify(o)) return; // don't touch the file if we don't need to
 		const fd = fs.openSync(this.file, "r+");
-		fs.writeFileSync(fd, JSON.stringify(c, null, "\t"));
+		fs.writeFileSync(fd, JSON.stringify(c));
 		fs.fsyncSync(fd);
 		fs.closeSync(fd);
 	}
