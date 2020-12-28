@@ -14,7 +14,8 @@ export interface Options extends Partial<Omit<E621Downloader["options"], "saveDi
 	saveDirectory: E621Downloader["options"]["saveDirectory"];
 };
 
-export class E621Error<T extends string> extends Error {
+export type VALID_ERROR_CODES = `ERR_${"MAX_TAGS" | "ALREADY_ACTIVE" | "INVALID_THREADS" | "INVALID_THREADS_2" | "NO_POSTS"}`;
+export class E621Error<T extends VALID_ERROR_CODES> extends Error {
 	code: T;
 	constructor(code: T, message?: string) {
 		super(message);
@@ -193,7 +194,7 @@ class E621Downloader extends EventEmitter<{
 
 		this.current.start = performance.now();
 		const list = await this.fetchPosts(tags, this.auth, 1, null);
-		if (list.length === 0) throw new E621Error("NO_POSTS", `No posts were found for the tag(s) "${tags.join(" ")}".`);
+		if (list.length === 0) throw new E621Error("ERR_NO_POSTS", `No posts were found for the tag(s) "${tags.join(" ")}".`);
 		Object.assign(this.current, {
 			total: list.length,
 			posts: list.map(l => ({
