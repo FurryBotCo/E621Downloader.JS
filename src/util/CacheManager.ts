@@ -37,30 +37,15 @@ export default class CacheManager {
 
 	get(): Cache {
 		if (!this.file) throw new TypeError("Invalid cache file.");
-		let o: Cache, v: string;
+		let o: Cache;
 		try {
-			v = fs.readFileSync(this.file).toString();
-			o = JSON.parse(v);
+			o = fs.readJSONSync(this.file)
 			if (typeof o.version !== "number") throw new OwOError("OwO *notices your invalid cache file*");
 		} catch (e) {
-			if (e.message.indexOf("Unexpected end of JSON input") !== -1 && v!.length === 0) {
-				const st = fs.statSync(this.file);
-				if (st.size !== 0) {
-					this.RETRY++;
-					console.log(`[${this.RETRY}] Node told us the cache file is empty when it's not.. trying again in 1000ms`);
-					deasync(this.waitForNodeToNotBeStupid)();
-					return this.get();
-				}
-			} else {
-				if (e.message.indexOf("ENOENT") !== -1) console.log("Cache file does not exist, creating it..");
-				else {
-					console.log("Reported cache file size:", v!.length);
-					console.log(v!);
-					fs.writeFileSync("/home/donovan/Projects/E621Downloader.JS/tmp", v!);
-					console.error("Error parsing cache file:", e);
-				}
-			}
-			if (fs.existsSync(this.file)) fs.renameSync(this.file, `${this.file.replace(/\.json/, "")}-${Date.now()}-${crypto.randomBytes(10).toString("hex")}.old.json`);
+
+			if (e.message.indexOf("ENOENT") !== -1) console.log("Cache file does not exist, creating it..");
+			else console.error("Error parsing cache file:", e);
+			if (fs.existsSync(this.file)) fs.renameSync(this.file, `${this.file.replace(/\.json/, "")}-${Date.now()}.old.json`);
 			let d: Cache["data"];
 			// this assumes the file is using the old `{ key: string[] }` format
 			if (e instanceof OwOError && o!) d = Object.keys(o as any).map(v => ({
@@ -73,7 +58,10 @@ export default class CacheManager {
 				version: 1,
 				data: d! ?? []
 			};
-			fs.writeFileSync(this.file, JSON.stringify(o));
+			fs.writeJsonSync(this.file, o, {
+				spaces: 4,
+				EOL: "\n"
+			});
 		}
 		this.RETRY = 0;
 
@@ -103,7 +91,10 @@ export default class CacheManager {
 		// just in case
 		c.data = this.unique(...c.data);
 		if (JSON.stringify(c) === JSON.stringify(o)) return; // don't touch the file if we don't need to
-		fs.writeFileSync(this.file, JSON.stringify(c));
+		fs.writeJsonSync(this.file, c, {
+			spaces: 4,
+			EOL: "\n"
+		});
 	}
 
 
