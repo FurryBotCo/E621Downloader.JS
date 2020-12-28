@@ -15,6 +15,8 @@ function log(...a) {
 	console.log(...a);
 }
 
+log("Using cache file:", e.options.cacheFile);
+
 let i = 0, t = 0;
 e
 	.on("fetch-finish", (total, time) => {

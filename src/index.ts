@@ -255,7 +255,6 @@ class E621Downloader extends EventEmitter<{
 		fromId: number;
 		data: any[];
 	}) {
-		if (value.event === "thread-done") this.endHandler(value.fromId);
 		switch (value.event) {
 			case "cache-update": {
 				(this.cacheUpdateHandler as any)(...value.data);
@@ -263,7 +262,7 @@ class E621Downloader extends EventEmitter<{
 			}
 
 			case "thread-done": {
-				this.endHandler(value.fromId);
+				(this.endHandler as any)(value.fromId, ...value.data);
 				break;
 			}
 		}
@@ -275,15 +274,15 @@ class E621Downloader extends EventEmitter<{
 		return this.cache.update.bind(this.cache);
 	}
 
-	private async endHandler(id: number) {
+	private async endHandler(id: number, posts: number, time: number) {
 		await new Promise((a, b) => setTimeout(a, 100));
 		const p = this.current.postsPerWorker.get(id);
 		if (p === undefined) {
 			this.emit("error", `Worker done without post amount in Main (Worker #${id})`);
 			return;
 		} else {
-			this.current.processed += p;
-			if (this.current.processed === this.current.total) {
+			this.current.processed += posts;
+			if (this.current.processed >= this.current.total) {
 				this.current.end = performance.now();
 				this.emit("download-done", this.current.total, parseFloat((this.current.end - this.current.start).toFixed(3)));
 				if (this.options.useCache) this.cache.update(this.current.tags, this.current.posts, this.current.folder || this.current.tags[0]);

@@ -1,6 +1,7 @@
 import * as fs from "fs-extra";
 import E621Downloader from "..";
 import deasync from "deasync";
+import crypto from "crypto";
 
 export interface Cache {
 	version: typeof CacheManager["VERSION"];
@@ -34,7 +35,7 @@ export default class CacheManager {
 		return new Promise((a, b) => setTimeout(() => cb(null), 1e3));
 	}
 
-	get() {
+	get(): Cache {
 		if (!this.file) throw new TypeError("Invalid cache file.");
 		let o: Cache, v: string;
 		try {
@@ -77,8 +78,9 @@ export default class CacheManager {
 	update(tags: string[] | string, posts: Cache["data"][number]["posts"], folder: string) {
 		if (Array.isArray(tags)) tags = tags.join(" ");
 		const c = this.get();
+		const o = JSON.parse(JSON.stringify(c));
 		const j = c.data.find(v => v.tags.join(" ") === tags);
-		if (j) c.data.splice(c.data.indexOf(j), 1);
+		// if (j) c.data.splice(c.data.indexOf(j), 1);
 		const v = j || {
 			tags: tags.split(" "),
 			lastDownloaded: 0,
@@ -91,7 +93,11 @@ export default class CacheManager {
 			...v.posts,
 			...posts
 		]);
-		c.data.push(v);
+		if (j) c.data[c.data.indexOf(j)] = v;
+		else c.data.push(v);
+		// just in case
+		c.data = this.unique(...c.data);
+		if (JSON.stringify(c) === JSON.stringify(o)) return; // don't touch the file if we don't need to
 		fs.writeFileSync(this.file, JSON.stringify(c, null, "\t"));
 	}
 

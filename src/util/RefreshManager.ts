@@ -1,5 +1,4 @@
-import E621Downloader, { Options } from "..";
-import CacheManager, { Cache } from "./CacheManager";
+import E621Downloader from "..";
 
 export default class RefreshManager {
 	main: E621Downloader;
@@ -36,6 +35,7 @@ export default class RefreshManager {
 			this.main.startDownload(tags, lastFolder, threads);
 			await new Promise<void>((a, b) => {
 				this.main.once("download-done", (total, time) => {
+					console.log("done");
 					res.push({
 						tags,
 						total: {
