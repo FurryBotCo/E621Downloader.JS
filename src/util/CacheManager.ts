@@ -56,8 +56,8 @@ export default class CacheManager extends EventEmitter<{
 				version: 1,
 				data: d! ?? []
 			};
-			if (!fs.existsSync(this.file)) fs.writeFileSync(this.file, "");
-			const fd = fs.openSync(this.file, "r+");
+			// if (!fs.existsSync(this.file)) fs.writeFileSync(this.file, "");
+			const fd = fs.openSync(this.file, "w+");
 			fs.writeFileSync(fd, JSON.stringify(o));
 			fs.fsyncSync(fd);
 			fs.closeSync(fd);
@@ -108,7 +108,7 @@ export default class CacheManager extends EventEmitter<{
 			return;
 		}
 		c.data[i].lastDownloaded = Date.now();
-		const fd = fs.openSync(this.file, "r+");
+		const fd = fs.openSync(this.file, "w+");
 		fs.writeFileSync(fd, JSON.stringify(c));
 		fs.fsyncSync(fd);
 		fs.closeSync(fd);
