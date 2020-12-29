@@ -4,6 +4,7 @@ import { program } from "commander";
 import pkg from "../../package.json";
 
 program
+	.storeOptionsAsProperties(true)
 	.version(pkg.version)
 
 program
