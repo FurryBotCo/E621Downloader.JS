@@ -36,11 +36,12 @@ function downloader(o: { [k: string]: any; }) {
 		.on("ready", (threadId) => console.log(`Thread #${threadId} is ready.`))
 		.on("start-recieved", (threadId, amount) => console.log(`[Thread #${threadId}]: Recieved start with ${amount} posts.`))
 		.on("thread-done", (threadId, amount, time) => console.log(`[Thread #${threadId}]: Finished downloading ${amount} posts in ${ms(time, true)}`))
-		.on("skip", (id, reason) => console.log(`Skipped post #${id} due to ${reason === "cache" ? "it being cached" :
+		.on("skip", (id, reason, tag) => console.log(`Skipped post #${id} due to ${reason === "cache" ? "it being cached" :
 			reason === "video" ? "it being a video, and skipVideo being true" :
 				reason === "flash" ? "it being flash, and skipFlash being true" :
 					reason === "fileExists" ? "the file existing, and overwriteExisting being set to false" :
-						"unknown reasons"
+						reason === "blacklisted" ? `it having a blacklisted tag (${tag})` :
+							"unknown reason"
 			}.`))
 		.on("download-done", (total, time) => {
 			console.log(`Finished downloading ${total} posts in ${ms(time, true)}`);
