@@ -1,7 +1,7 @@
 import * as fs from "fs-extra";
 import { Cache } from "../src/util/CacheManager";
 
-const v: Cache = fs.readJSONSync("/home/donovan/Documents/E621Downloader/cache.json");
+const v: Cache = fs.readJSONSync("/home/donovan/Documents/E621Downloader/cache/main.json");
 
 v.data = v.data.map(v => ({
 	...v,

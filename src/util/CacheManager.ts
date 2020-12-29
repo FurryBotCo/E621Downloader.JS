@@ -43,11 +43,18 @@ export default class CacheManager extends EventEmitter<{
 		this.minify = !!minify;
 	}
 
+	static loc(type: "main" | "data", folder: string) {
+		switch (type) {
+			case "main": return `${folder}/main.json`;
+			case "data": return `${folder}/data`;
+		}
+	}
+
 	loc(type: "main" | "data"): string;
 	loc(type: "tags", tags: string[]): string | undefined;
 	loc(type: "main" | "data" | "tags", tags?: string[]) {
 		switch (type) {
-			case "main": return `${this.folder}/cache.json`;
+			case "main": return `${this.folder}/main.json`;
 			case "data": return `${this.folder}/data`;
 			case "tags": {
 				const id = this.get().data.find(v => v.tags.join(" ") === tags!.join(""))?.id;
