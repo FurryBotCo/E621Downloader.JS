@@ -65,7 +65,7 @@ export default class CacheManager extends EventEmitter<{
 		}
 	}
 
-	get(): Cache {
+	get(fix = true): Cache {
 		let o: Cache, v: number;
 		try {
 			o = fs.readJSONSync(this.loc("main"))
@@ -102,6 +102,8 @@ export default class CacheManager extends EventEmitter<{
 			fs.fsyncSync(fd);
 			fs.closeSync(fd);
 		}
+
+		if (fix === true) this.fixTags(o);
 
 		return o;
 	}
@@ -220,5 +222,28 @@ export default class CacheManager extends EventEmitter<{
 		tags = tags.map(t => t.toLowerCase().trim());
 		const c = this.getPosts(tags);
 		return c.map(v => v.id).includes(id);
+	}
+
+	// lowercase & trim
+	fixTags(c?: Cache) {
+		if (c === undefined) c = this.get();
+		const b: Cache = {
+			...c
+		};
+
+		c.data.map((v, i) => {
+			const t = v.tags.map(t => t.toLowerCase().trim());
+			if (v.tags.join(" ") !== t.join(" ")) c!.data[i].tags = t;
+		});
+
+		if (JSON.stringify(c) !== JSON.stringify(b)) {
+			this.emit("debug", "[CacheManager/fixTags] Skipping file write due to no changes");
+			return;
+		}
+
+		const fd = fs.openSync(this.loc("main"), "w+");
+		fs.writeFileSync(fd, JSON.stringify(b, null, this.minify ? "" : "\t"));
+		fs.fsyncSync(fd);
+		fs.closeSync(fd);
 	}
 }
