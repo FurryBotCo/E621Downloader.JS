@@ -35,7 +35,8 @@ export default class RefreshManager extends EventEmitter<{
 			};
 		}[] = [];
 		let cur = 0;
-		for await (const { tags, lastFolder, posts } of c.data) {
+		for await (const { tags, lastFolder } of c.data) {
+			const posts = this.cache.getPosts(tags);
 			cur = Date.now();
 			console.log(`Running a refresh with the tag${tags.length === 1 ? "" : "s"} "${tags.join(" ")}"`);
 			this.main.startDownload(tags, lastFolder, threads);

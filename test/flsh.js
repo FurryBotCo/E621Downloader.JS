@@ -5,7 +5,8 @@ const e = new E621Downloader({
 	useCache: true,
 	saveDirectory: "/home/donovan/Documents/E621Downloader/Files",
 	skipFlash: true,
-	skipVideo: true
+	skipVideo: true,
+	minifyCache: true
 });
 
 let i = 0, t = 0;

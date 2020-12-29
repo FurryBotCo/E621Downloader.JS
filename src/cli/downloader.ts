@@ -11,7 +11,7 @@ function downloader(o: { [k: string]: any; }) {
 		skipVideo: o.skipVideo,
 		skipFlash: o.skipFlash,
 		tagBlacklist: o.tagBlacklist && o.tagBlacklist.split(" "),
-		cacheFile: o.cacheFile,
+		cacheDir: o.cacheDir,
 		useCache: o.useCache
 	};
 

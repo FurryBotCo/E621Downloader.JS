@@ -18,7 +18,7 @@ program
 	.option("--skip-video", "If video files should be skipped.")
 	.option("--skip-flash", "If flash files should be skipped.")
 	.option("--tag-blacklist <tags>", "Space separated list of tags that should be skipped while downloading posts")
-	.option("--cache-file <file>", "The location to stort the cache file.")
+	.option("--cache-dir <dir>", "The location to store cache related things.")
 	.option("--use-cache", "If the cache file should be used")
 	.option("--folder", "The folder inside of saveDirectory to save this download inside. Defaults to first tag.")
 	.option("--threads <num>", "The number of threads to use while downloading. A number between 1 and 3.", "1")

@@ -102,9 +102,13 @@ class E621Downloader extends EventEmitter<Events> {
 		 */
 		tagBlacklist: string[];
 		/**
-		 * The file to save the cache in
+		 * The directory to save cache things in
 		 */
-		cacheFile: string;
+		cacheDir: string;
+		/**
+		 * If the stored cache files should be minified (true by default)
+		 */
+		minifyCache: boolean;
 		/**
 		 * If we should cache downloaded posts (the post ids)
 		 */
@@ -140,18 +144,19 @@ class E621Downloader extends EventEmitter<Events> {
 		this.options = {
 			saveDirectory: path.resolve(opts.saveDirectory),
 			auth: opts.auth || null,
-			overwriteExisting: !!opts.overwriteExisting,
-			skipVideo: !!opts.skipVideo,
-			skipFlash: !!opts.skipFlash,
+			overwriteExisting: !!(opts.overwriteExisting ?? true),
+			skipVideo: !!(opts.skipVideo ?? true),
+			skipFlash: !!(opts.skipFlash ?? true),
 			tagBlacklist: opts.tagBlacklist || [],
-			cacheFile: opts.cacheFile || path.resolve(`${opts.saveDirectory}${opts.saveDirectory.endsWith("E621Downloader/Files") ? "/.." : ""}/cache.json`),
-			useCache: opts.useCache ?? true
+			cacheDir: opts.cacheDir || path.resolve(`${opts.saveDirectory}${opts.saveDirectory.endsWith("E621Downloader/Files") ? "/.." : ""}/cache`),
+			useCache: !!(opts.useCache ?? true),
+			minifyCache: !!(opts.minifyCache ?? true)
 		};
-		if (!fs.existsSync(path.dirname(this.options.cacheFile))) fs.mkdirpSync(path.dirname(this.options.cacheFile));
 		if (!fs.existsSync(this.options.saveDirectory)) throw new TypeError(`saveDirectory "${this.options.saveDirectory}" does not exist on disk.`);
+		if (!fs.existsSync(this.options.cacheDir)) fs.mkdirpSync(this.options.cacheDir);
 		this.threads = new Map();
 		this.reset();
-		const cache = new CacheManager(this.options.cacheFile);
+		const cache = new CacheManager(this.options.cacheDir, this.options.minifyCache);
 		this.managers = {
 			cache,
 			refresh: undefined as any // we have to do this weird due to the way RefreshManager works
@@ -177,9 +182,7 @@ class E621Downloader extends EventEmitter<Events> {
 
 	get cacheObj() { return !this.current ? null : this.cache.get().data.find(v => v.tags.join(" ").toLowerCase() === this.current.tags.join(" ").toLowerCase()) }
 	cached(id: number) {
-		const c = this.cacheObj?.posts?.map(v => v.id);
-		if (!c || c.length === 0) return false;
-		return c.includes(id);
+		return this.cache.isCached(id, this.current.tags);
 	}
 	addToCache(post: Post, ten = true) {
 		this.current.done.push(post);
@@ -239,6 +242,9 @@ class E621Downloader extends EventEmitter<Events> {
 		this.current.tags = tags;
 		const p = await this.fetchPosts(tags, this.auth, 1, null);
 		if (p.length === 0) throw new E621Error("ERR_NO_POSTS", `No posts were found for the tag(s) "${tags.join(" ")}".`);
+
+		// this makes the original files
+		this.cache.update(tags, [], folder);
 
 		// I wanted to do a for loop, but it continued on before the loop got done
 		// and this doesn't require splicing, which can be messy
@@ -397,7 +403,7 @@ class E621Downloader extends EventEmitter<Events> {
 
 			// internal event only
 			case "finished": {
-				this.cache.update(this.current.tags, this.current.done, this.current.folder!);
+				this.cache.update(this.current.tags, this.current.done, this.current.folder!, true);
 				return this.endHandler(value.fromId);
 				break;
 			}
