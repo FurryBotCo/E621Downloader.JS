@@ -33,15 +33,33 @@ export default class RefreshManager extends EventEmitter<{
 				end: number;
 				total: number;
 			};
+			error: Error | null;
 		}[] = [];
 		let cur = 0;
 		for await (const { tags, lastFolder } of c.data) {
 			const posts = this.cache.getPosts(tags);
 			cur = Date.now();
 			console.log(`Running a refresh with the tag${tags.length === 1 ? "" : "s"} "${tags.join(" ")}"`);
-			this.main.startDownload(tags, lastFolder, threads);
+			let c: () => void;
+			this.main.startDownload(tags, lastFolder, threads)
+				.catch(err => {
+					res.push({
+						tags,
+						total: {
+							old: posts.length,
+							new: posts.length
+						},
+						time: {
+							start: cur,
+							end: Date.now(),
+							total: 0
+						},
+						error: err
+					});
+					return c();
+				});
 			await new Promise<void>((a, b) => {
-				this.main.once("download-done", (total, time) => {
+				const l = (total: number, time: number) => {
 					res.push({
 						tags,
 						total: {
@@ -52,10 +70,17 @@ export default class RefreshManager extends EventEmitter<{
 							start: cur,
 							end: Date.now(),
 							total: time
-						}
+						},
+						error: null
 					});
+				}
+				this.main.once("download-done", l);
+				// so we can resolve if we need to
+				c = (() => {
+					this.main.removeListener("download-done", l);
 					return a();
 				});
+				return a();
 			});
 		}
 
