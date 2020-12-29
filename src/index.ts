@@ -287,7 +287,9 @@ class E621Downloader extends EventEmitter<Events> {
 		});
 
 		if (list.length === 0) {
-			// we assume all posts are cached / disgarded for some reason
+			// we assume all posts are cached or disgarded for some reason
+			this.emit("warn", "main", `Download of tag(s) "${tags.join(" ")}" had no left over posts after all checks were ran.`);
+			return list.length;
 		}
 		if (list.length < threads) this.emit("warn", "main", `Download of tag(s) "${tags.join(" ")}" has less tags than threads, some threads will be unused.`);
 		const posts = chunk(list, Math.ceil(list.length / threads));
