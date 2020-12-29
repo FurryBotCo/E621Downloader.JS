@@ -43,7 +43,7 @@ type Events = {
 	"start-recieved": (threadId: number, amount: number) => void;
 	"thread-done": (threadId: number, amount: number, time: number) => void;
 	"post-finish": (threadId: number, id: number, time: number, current: number, total: number, post: Post) => void;
-	"skip": (id: number, reason: "cache" | "fileExists" | "video" | "flash") => void;
+	"skip": ((id: number, reason: "cache" | "fileExists" | "video" | "flash") => void) | ((id: number, reason: "blacklisted", tag: string) => void);
 	"download-done": (total: number, time: number) => void;
 	"fetch-page": (page: number, count: number, time: number) => void;
 	"fetch-finish": (total: number, time: number) => void;
@@ -196,15 +196,20 @@ class E621Downloader extends EventEmitter<Events> {
 	 * @param {string[]} tags - The tags to use. 
 	 * @param {string} [folder] - The folder to save files to. (not a full path, put inside the Options.saveDirectory folder)
 	 * @param {(1 | 2 | 3)} [threads=1] - The number of simultaneous downloads to run. Hard limit of 3 maximum. This is the limit an e621 admin {@link https://e621.download/threads.png|asked us to use}. If you manually edit the code and get blocked, we do not take responsibility for that.
+	 * @param {string[]} [blacklistedTags] - Tags that will cause a post to be skipped if found on it.
 	 */
-	async startDownload(tags: string[], folder?: string, threads: (1 | 2 | 3) = 1) {
-		if (!tags || tags.length === 0 || tags.join(" ").length === 0) throw new TypeError("A list of tags is required.");
-		// bravo if you manage to hit this without doing it on purpose
+	async startDownload(tags: string[], folder?: string, threads: (1 | 2 | 3) = 1, blacklistedTags?: string[]) {
+		if (!tags || !Array.isArray(tags) || tags.length === 0 || tags.join(" ").length === 0) throw new TypeError("A list of tags is required.");
+		if (!blacklistedTags || !Array.isArray(blacklistedTags)) blacklistedTags = [];
+		// bravo if you manage to hit this without doing it on purpose, how specific do you need to be?
 		if (tags.length > 40) throw new E621Error("ERR_MAX_TAGS", "A maximum of 40 tags are allowed.");
 		if (this.current.active) throw new E621Error("ERR_ALREADY_ACTIVE", "A download is already active. If this is an issue, run the `reset` function.");
 		if (isNaN(threads) || !threads || threads < 1) throw new E621Error("ERR_INVALID_THREADS", "Threads must be a number between 1 and 3.");
 		if (threads > 3) throw new E621Error("ERR_INVALID_THREADS_2", "You cannot use more than 3 threads. This is a limit that an e621 admin asked us to put in place. See https://e621.download/threads.png")
 		folder = this.sanitizeFolderName(folder || tags[0]);
+		// tags are case insensitive, so we store them as lowercase to avoid duplicates
+		tags = tags.map(t => t.toLowerCase());
+		blacklistedTags = blacklistedTags.map(t => t.toLowerCase());
 		const dir = path.resolve(`${this.options.saveDirectory}/${folder}`);
 		if (!fs.existsSync(dir)) fs.mkdirSync(dir);
 		this.emit("download-start", tags, folder, dir, threads, this.auth !== null);
@@ -258,8 +263,16 @@ class E621Downloader extends EventEmitter<Events> {
 
 			if (post.ext === "webm" && this.options.skipVideo) {
 				this.addToCache(post);
-				list.splice(list.indexOf(post), 1);
+				this.emit("skip", post.id, "video");
 				return false;
+			}
+
+			for (const t of post.tags) {
+				if (blacklistedTags!.includes(t.toLowerCase())) {
+					this.addToCache(post);
+					this.emit("skip", post.id, "blacklisted", t);
+					return false;
+				}
 			}
 
 			return true;
@@ -273,6 +286,9 @@ class E621Downloader extends EventEmitter<Events> {
 			}))
 		});
 
+		if (list.length === 0) {
+			// we assume all posts are cached / disgarded for some reason
+		}
 		if (list.length < threads) this.emit("warn", "main", `Download of tag(s) "${tags.join(" ")}" has less tags than threads, some threads will be unused.`);
 		const posts = chunk(list, Math.ceil(list.length / threads));
 		for (const [i, w] of this.threads) {
