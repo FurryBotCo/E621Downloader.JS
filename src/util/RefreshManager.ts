@@ -42,7 +42,6 @@ export default class RefreshManager extends EventEmitter<{
 			this.main.startDownload(tags, lastFolder, threads);
 			await new Promise<void>((a, b) => {
 				this.main.once("download-done", (total, time) => {
-					console.log("done");
 					res.push({
 						tags,
 						total: {
