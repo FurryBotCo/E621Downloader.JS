@@ -10,6 +10,6 @@ v.data = v.data.map(v => ({
 console.log("total tags:", v.data.length);
 const j = fs.readdirSync("/home/donovan/Documents/E621Downloader/Files");
 const c = v.data.map(v => v.lastFolder);
-for (const a of j) if (!c.includes(a)) console.log(a);
+for (const a of j) if (!c.includes(a)) console.log(`c.update(["${a}"], [], "${a}")`);
 
-fs.writeJSONSync("/home/donovan/Documents/E621Downloader/cache.json", v);
+fs.writeJSONSync("/home/donovan/Documents/E621Downloader/cache/main.json", v);

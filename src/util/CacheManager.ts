@@ -97,7 +97,7 @@ export default class CacheManager extends EventEmitter<{
 			};
 			// if (!fs.existsSync(this.file)) fs.writeFileSync(this.file, "");
 			const fd = fs.openSync(this.loc("main"), "w+");
-			fs.writeFileSync(fd, JSON.stringify(o, null, this.minify ? "\t" : ""));
+			fs.writeFileSync(fd, JSON.stringify(o, null, this.minify ? "" : "\t"));
 			fs.fsyncSync(fd);
 			fs.closeSync(fd);
 		}
@@ -119,7 +119,7 @@ export default class CacheManager extends EventEmitter<{
 		if (g) return g;
 		c.data.push(j);
 		const fd = fs.openSync(this.loc("main"), "w+");
-		fs.writeFileSync(fd, JSON.stringify(c, null, this.minify ? "\t" : ""));
+		fs.writeFileSync(fd, JSON.stringify(c, null, this.minify ? "" : "\t"));
 		fs.fsyncSync(fd);
 		fs.closeSync(fd);
 		return j;
@@ -159,7 +159,7 @@ export default class CacheManager extends EventEmitter<{
 			return;
 		}
 		const fd = fs.openSync(this.loc("main"), "w+");
-		fs.writeFileSync(fd, JSON.stringify(c, null, this.minify ? "\t" : ""));
+		fs.writeFileSync(fd, JSON.stringify(c, null, this.minify ? "" : "\t"));
 		fs.fsyncSync(fd);
 		fs.closeSync(fd);
 	}
@@ -200,7 +200,7 @@ export default class CacheManager extends EventEmitter<{
 		}
 
 		const fd = fs.openSync(loc, "w+");
-		fs.writeFileSync(fd, JSON.stringify(j, null, this.minify ? "\t" : ""));
+		fs.writeFileSync(fd, JSON.stringify(j, null, this.minify ? "" : "\t"));
 		fs.fsyncSync(fd);
 		fs.closeSync(fd);
 		return;
