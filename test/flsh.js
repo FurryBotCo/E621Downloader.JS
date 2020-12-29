@@ -49,5 +49,5 @@ e
 process.nextTick(async () => {
 	e.startDownload([
 		"h0rs3"
-	]);
+	]).then(v => process.exit(0));
 });
