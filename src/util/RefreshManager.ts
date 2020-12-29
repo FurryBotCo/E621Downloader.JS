@@ -1,5 +1,6 @@
 import { EventEmitter } from "tsee";
 import E621Downloader from "..";
+import deasync from "deasync";
 
 export default class RefreshManager extends EventEmitter<{
 	"error": (err: Error | string, extra?: any, threadId?: number) => void;
@@ -36,30 +37,15 @@ export default class RefreshManager extends EventEmitter<{
 			error: Error | null;
 		}[] = [];
 		let cur = 0;
-		for await (const { tags, lastFolder } of c.data) {
+		v: for await (const { tags: tg, lastFolder } of c.data) {
+			const tags = tg.map(t => t.toLowerCase().trim());
 			const posts = this.cache.getPosts(tags);
 			cur = Date.now();
 			console.log(`Running a refresh with the tag${tags.length === 1 ? "" : "s"} "${tags.join(" ")}"`);
 			let c: () => void;
-			this.main.startDownload(tags, lastFolder, threads)
-				.catch(err => {
-					res.push({
-						tags,
-						total: {
-							old: posts.length,
-							new: posts.length
-						},
-						time: {
-							start: cur,
-							end: Date.now(),
-							total: 0
-						},
-						error: err
-					});
-					return c();
-				});
-			await new Promise<void>((a, b) => {
-				const l = (total: number, time: number) => {
+			await this.main.startDownload(tags, lastFolder, threads)
+				.then((total) => {
+					const end = Date.now();
 					res.push({
 						tags,
 						total: {
@@ -68,20 +54,28 @@ export default class RefreshManager extends EventEmitter<{
 						},
 						time: {
 							start: cur,
-							end: Date.now(),
-							total: time
+							end,
+							total: end - cur
 						},
 						error: null
 					});
-				}
-				this.main.once("download-done", l);
-				// so we can resolve if we need to
-				c = (() => {
-					this.main.removeListener("download-done", l);
-					return a();
+				})
+				.catch(async (err) => {
+					const end = Date.now();
+					res.push({
+						tags,
+						total: {
+							old: posts.length,
+							new: posts.length
+						},
+						time: {
+							start: cur,
+							end,
+							total: end - cur
+						},
+						error: err
+					});
 				});
-				return a();
-			});
 		}
 
 		this.opt.overwriteExisting = o;

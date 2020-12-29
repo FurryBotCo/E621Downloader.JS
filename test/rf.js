@@ -11,7 +11,7 @@ function log(...a) {
 	console.log(...a);
 }
 
-log("Using cache file:", e.options.cacheFile);
+log("Using cache file:", `${e.options.cacheDir}/main.json`);
 
 let i = 0, t = 0;
 e
@@ -50,5 +50,5 @@ e
 
 process.nextTick(async () => {
 	const r = await e.managers.refresh.run(3);
-	for (const v of r) console.log(`[${v.tags.join(" ")}]: ${v.total.old === v.total.new ? "No Change." : `+${v.total.new - v.total.old}`}`);
+	for (const v of r) console.log(`[${v.tags.join(" ")}]: ${v.error === null ? v.total.old === v.total.new ? "No Change." : `+${v.total.new - v.total.old}` : `Error, ${v.error.stack}`}`);
 });

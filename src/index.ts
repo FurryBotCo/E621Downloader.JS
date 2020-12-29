@@ -211,7 +211,8 @@ class E621Downloader extends EventEmitter<Events> {
 		if (threads > 3) throw new E621Error("ERR_INVALID_THREADS_2", "You cannot use more than 3 threads. This is a limit that an e621 admin asked us to put in place. See https://e621.download/threads.png")
 		folder = this.sanitizeFolderName(folder || tags[0]);
 		// tags are case insensitive, so we store them as lowercase to avoid duplicates
-		tags = tags.map(t => t.toLowerCase());
+		// we also trim them to avoid excessive whitespace
+		tags = tags.map(t => t.toLowerCase().trim());
 		blacklistedTags = blacklistedTags.map(t => t.toLowerCase());
 		const dir = path.resolve(`${this.options.saveDirectory}/${folder}`);
 		if (!fs.existsSync(dir)) fs.mkdirSync(dir);

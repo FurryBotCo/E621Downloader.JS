@@ -57,6 +57,7 @@ export default class CacheManager extends EventEmitter<{
 			case "main": return `${this.folder}/main.json`;
 			case "data": return `${this.folder}/data`;
 			case "tags": {
+				tags = tags!.map(t => t.toLowerCase().trim());
 				const id = this.get().data.find(v => v.tags.join(" ") === tags!.join(""))?.id;
 				if (!id) return undefined;
 				else return `${this.loc("data")}/${id}.json`;
@@ -106,6 +107,7 @@ export default class CacheManager extends EventEmitter<{
 	}
 
 	getTagsInstance(tags: string[], lastFolder: string) {
+		tags = tags.map(t => t.toLowerCase().trim());
 		const id = uuid();
 		const j = {
 			id,
@@ -126,7 +128,8 @@ export default class CacheManager extends EventEmitter<{
 	}
 
 	update(tags: string[], posts: CachePost[], folder: string, last?: boolean) {
-		if (!tags || tags.length === 0 || tags.join(" ").length === 0) {
+		tags = tags.map(t => t.toLowerCase().trim());
+		if (!tags || tags.length === 0 || tags.join(" ").trim().length === 0) {
 			const e = new Error(`[CacheManager] Zero tag cache update recieved.`)
 			this.emit("error", e);
 			throw e;
@@ -165,6 +168,7 @@ export default class CacheManager extends EventEmitter<{
 	}
 
 	getPosts(tags: string[]) {
+		tags = tags.map(t => t.toLowerCase().trim());
 		const loc = this.loc("tags", tags);
 		if (!loc) throw new TypeError(`Unable to determine cache location for tag(s) "${tags.join(" ")}"`);
 		if (!fs.existsSync(loc)) {
@@ -213,6 +217,7 @@ export default class CacheManager extends EventEmitter<{
 	}
 
 	isCached(id: number, tags: string[]) {
+		tags = tags.map(t => t.toLowerCase().trim());
 		const c = this.getPosts(tags);
 		return c.map(v => v.id).includes(id);
 	}
