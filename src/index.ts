@@ -426,7 +426,12 @@ class E621Downloader extends EventEmitter<Events> {
 		this.current.end = performance.now();
 		this.emit("download-done", this.current.total, parseFloat((this.current.end - this.current.start).toFixed(3)));
 		if (this.options.useCache) this.cache.update(this.current.tags, this.current.posts, this.current.folder || this.current.tags[0]);
-		if (p) this.current.resolve!();
+		if (p) {
+			if (!this.current.resolve) {
+				this.emit("error", "main", new Error("Complete called without resolve function being present. This IS a bug."));
+			}
+			else this.current.resolve!();
+		}
 		this.reset();
 	}
 
