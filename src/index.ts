@@ -1,6 +1,6 @@
 import * as fs from "fs-extra";
 import { EventEmitter } from "tsee";
-import { Worker } from "worker_threads";
+import { threadId, Worker } from "worker_threads";
 import path from "path";
 import * as https from "https";
 import chunk from "chunk";
@@ -295,12 +295,22 @@ class E621Downloader extends EventEmitter<Events> {
 		if (list.length < threads) this.emit("warn", "main", `Download of tag(s) "${tags.join(" ")}" has less tags than threads, some threads will be unused.`);
 		const posts = chunk(list, Math.ceil(list.length / threads));
 		for (const [i, w] of this.threads) {
-			this.current.postsPerWorker.set(i, posts[i].length);
-			w.postMessage({
-				event: "start",
-				data: posts[i],
-				range: this.count(posts, i)
-			});
+			if (!posts[i]) {
+				this.emit("warn", "main", `There seem to be no posts to give to thread #${i}. This might be a bug.`);
+				this.current.postsPerWorker.set(i, 0);
+				w.postMessage({
+					event: "start",
+					data: [],
+					range: [0, 0]
+				});
+			} else {
+				this.current.postsPerWorker.set(i, posts[i].length);
+				w.postMessage({
+					event: "start",
+					data: posts[i] || [],
+					range: this.count(posts, i)
+				});
+			}
 		}
 
 		await new Promise<void>((resolve, reject) => Object.assign(this.current, { resolve, reject }));

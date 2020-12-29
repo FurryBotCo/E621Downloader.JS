@@ -41,9 +41,13 @@ class Worker {
 	static async start(posts: Post[], range: [start: number, end: number]) {
 		this.posts = posts;
 		const start = performance.now();
+		if (posts.length === 0) this.sendToParent("warn", "I got zero posts?");
 		for (const [i, p] of posts.entries()) await this.download(p, [range[0] + i, range[1]]);
 		const end = performance.now();
-		if (this.processed !== this.posts.length) console.error(new Error(`Worker (${this.id}) finished before all posts were processed. Total: ${this.posts.length}, Processed: ${this.processed}`));
+		if (this.processed !== this.posts.length) this.sendToParent("error", new Error(`Worker (${this.id}) finished before all posts were processed. Total: ${this.posts.length}, Processed: ${this.processed}`), {
+			total: this.posts.length,
+			processed: this.processed
+		});
 		this.sendToParent("thread-done", posts.length, parseFloat((end - start).toFixed(3)));
 		this.sendToParent("finished");
 	}
