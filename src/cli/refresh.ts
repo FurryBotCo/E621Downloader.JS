@@ -56,7 +56,8 @@ function refresh(o: { [k: string]: any; }) {
 				reason === "video" ? "it being a video, and skipVideo being true" :
 					reason === "flash" ? "it being flash, and skipFlash being true" :
 						reason === "fileExists" ? "the file existing, and overwriteExisting being set to false" :
-							"unknown reasons"
+							reason === "blacklisted" ? `it having a blacklisted tag (${tag})` :
+								"unknown reasons"
 				}.`); */
 		})
 		.on("download-done", (total, time) => {

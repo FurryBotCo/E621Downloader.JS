@@ -286,9 +286,10 @@ class E621Downloader extends EventEmitter<Events> {
 			}))
 		});
 
-		if (list.length === 0) {
+		if (!list || list.length === 0) {
 			// we assume all posts are cached or disgarded for some reason
 			this.emit("warn", "main", `Download of tag(s) "${tags.join(" ")}" had no left over posts after all checks were ran.`);
+			this.complete(false);
 			return list.length;
 		}
 		if (list.length < threads) this.emit("warn", "main", `Download of tag(s) "${tags.join(" ")}" has less tags than threads, some threads will be unused.`);
@@ -398,13 +399,19 @@ class E621Downloader extends EventEmitter<Events> {
 		const t = this.threads.get(id);
 		if (!t) this.emit("warn", "main", `Worker (#${id}) done without thread reference`);
 		this.current.finishedCount++;
-		if (this.current.finishedCount >= this.current.threadCount) {
-			this.current.end = performance.now();
-			this.emit("download-done", this.current.total, parseFloat((this.current.end - this.current.start).toFixed(3)));
-			if (this.options.useCache) this.cache.update(this.current.tags, this.current.posts, this.current.folder || this.current.tags[0]);
-			this.current.resolve!();
-			this.reset();
-		}
+		if (this.current.finishedCount >= this.current.threadCount) this.complete();
+	}
+
+	/**
+	 * Run the completion functions
+	 * @param {boolean} [p]  - if we should try to resolve the current promise
+	 */
+	private async complete(p = true) {
+		this.current.end = performance.now();
+		this.emit("download-done", this.current.total, parseFloat((this.current.end - this.current.start).toFixed(3)));
+		if (this.options.useCache) this.cache.update(this.current.tags, this.current.posts, this.current.folder || this.current.tags[0]);
+		if (p) this.current.resolve!();
+		this.reset();
 	}
 
 	static sanitizeFolderName(name: string) {
