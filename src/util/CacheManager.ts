@@ -1,8 +1,6 @@
 import * as fs from "fs-extra";
+import { EventEmitter } from "tsee";
 import E621Downloader from "..";
-import deasync from "deasync";
-import crypto from "crypto";
-
 export interface Cache {
 	version: typeof CacheManager["VERSION"];
 	data: {
@@ -23,16 +21,16 @@ class OwOError extends Error {
 	}
 }
 
-export default class CacheManager {
+export default class CacheManager extends EventEmitter<{
+	"error": (err: Error | string, extra?: any, threadId?: number) => void;
+	"warn": (info: string, threadId?: number) => void;
+	"debug": (info: string, threadId?: number) => void;
+}> {
 	static VERSION = 1 as const;
 	file: string;
-	private RETRY = 0;
 	constructor(file: string) {
+		super();
 		this.file = file;
-	}
-
-	async waitForNodeToNotBeStupid(cb: (err: Error | null, res: void) => void) {
-		return new Promise((a, b) => setTimeout(() => cb(null), 1e3));
 	}
 
 	get(): Cache {
@@ -43,7 +41,7 @@ export default class CacheManager {
 			if (typeof o.version !== "number") throw new OwOError("OwO *notices your invalid cache file*");
 		} catch (e) {
 
-			if (e.message.indexOf("ENOENT") !== -1) console.log("Cache file does not exist, creating it..");
+			if (e.message.indexOf("ENOENT") !== -1) this.emit("warn", "Cache file does not exist, creating it..");
 			else console.error("Error parsing cache file:", e);
 			if (fs.existsSync(this.file)) fs.renameSync(this.file, `${this.file.replace(/\.json/, "")}-${Date.now()}.old.json`);
 			let d: Cache["data"];
@@ -58,46 +56,63 @@ export default class CacheManager {
 				version: 1,
 				data: d! ?? []
 			};
+			if (!fs.existsSync(this.file)) fs.writeFileSync(this.file, "");
 			const fd = fs.openSync(this.file, "r+");
 			fs.writeFileSync(fd, JSON.stringify(o));
 			fs.fsyncSync(fd);
 			fs.closeSync(fd);
 		}
-		this.RETRY = 0;
 
 		return o;
 	}
 
-	update(tags: string[] | string, posts: Cache["data"][number]["posts"], folder: string) {
-		if (Array.isArray(tags)) tags = tags.join(" ");
+	update(tags: string[], posts: Cache["data"][number]["posts"], folder: string) {
+		if (!tags || tags.length === 0 || tags.join(" ").length === 0) {
+			const e = new Error(`[CacheManager] Zero tag cache update recieved.`)
+			this.emit("error", e);
+			throw e;
+			return;
+		}
+		// remove extraneous properties
+		posts = posts.map(p => ({
+			id: p.id,
+			md5: p.md5
+		}));
 		const c = this.get();
 		const o = JSON.parse(JSON.stringify(c));
-		const j = c.data.find(v => v.tags.join(" ") === tags);
+		const j = c.data.find(v => v.tags.join(" ") === tags.join(" "));
 		// if (j) c.data.splice(c.data.indexOf(j), 1);
 		const v = j || {
-			tags: tags.split(" "),
+			tags,
 			lastDownloaded: 0,
 			lastFolder: folder,
 			posts: []
 		};
-		v.lastDownloaded = Date.now();
+		// v.lastDownloaded = Date.now();
 		v.lastFolder = folder;
 		v.posts = this.unique(...[
 			...v.posts,
 			...posts
 		]);
-		if (j) c.data[c.data.indexOf(j)] = v;
-		else c.data.push(v);
+		let i: number;
+		if (j) {
+			i = c.data.indexOf(j);
+			c.data[c.data.indexOf(j)] = v;
+		}
+		else i = (c.data.push(v)) - 1;
 		// just in case
 		c.data = this.unique(...c.data);
-		if (JSON.stringify(c) === JSON.stringify(o)) return; // don't touch the file if we don't need to
+		// don't touch the file if we don't need to
+		if (JSON.stringify(c) === JSON.stringify(o)) {
+			this.emit("debug", "[CacheManager] Skipping file write due to no changes");
+			return;
+		}
+		c.data[i].lastDownloaded = Date.now();
 		const fd = fs.openSync(this.file, "r+");
 		fs.writeFileSync(fd, JSON.stringify(c));
 		fs.fsyncSync(fd);
 		fs.closeSync(fd);
 	}
-
-
 
 	unique<T>(...v: T[]): T[] {
 		// we have to stringify & parse because of objects and such

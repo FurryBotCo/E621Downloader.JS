@@ -6,8 +6,6 @@ import URL from "url";
 import * as pkg from "../../package.json";
 import { performance } from "perf_hooks";
 import "source-map-support/register";
-import CacheManager from "./CacheManager";
-import { timingSafeEqual } from "crypto";
 
 export type ThreadOptions = {
 	id: number;
@@ -26,8 +24,7 @@ class Worker {
 	static options: E621Downloader["options"];
 	static dir: string;
 	static posts: Post[];
-	static cache: CacheManager;
-	static current = 0;
+	static processed = 0;
 	static donePosts: Post[];
 	static init(iOpt: ThreadOptions) {
 		this.id = iOpt.id;
@@ -38,7 +35,6 @@ class Worker {
 		this.dir = iOpt.dir;
 		this.posts = []; // we get these in start
 		this.donePosts = [];
-		if (this.options.useCache) this.cache = new CacheManager(this.options.cacheFile);
 		this.sendToParent("ready", this.id + 1);
 	}
 
@@ -46,26 +42,10 @@ class Worker {
 		this.posts = posts;
 		const start = performance.now();
 		for (const [i, p] of posts.entries()) await this.download(p, [range[0] + i, range[1]]);
-		if (this.options.useCache) this.updateCache();
 		const end = performance.now();
+		if (this.processed !== this.posts.length) console.error(new Error(`Worker (${this.id}) finished before all posts were processed. Total: ${this.posts.length}, Processed: ${this.processed}`));
 		this.sendToParent("thread-done", posts.length, parseFloat((end - start).toFixed(3)));
-	}
-
-	static get cacheObj() { return this.cache.get().data.find(v => v.tags.join(" ").toLowerCase() === this.tags.join(" ").toLowerCase()) }
-	static cached(id: number) {
-		const c = this.cacheObj?.posts?.map(v => v.id);
-		if (!c || c.length === 0) return false;
-		return c.includes(id);
-	}
-
-	static updateCache() {
-		this.sendToParent("cache-update", this.tags, this.donePosts.map(v => ({ id: v.id, md5: v.md5 })), this.folder);
-	}
-
-	static addToCache(post: Post) {
-		this.current++;
-		this.donePosts.push(post);
-		if (this.options.useCache && (this.current % 10) === 0) this.updateCache();
+		this.sendToParent("finished");
 	}
 
 	static async download(info: Post, range: [start: number, end: number]) {
@@ -73,23 +53,6 @@ class Worker {
 		// so we can make the url if absent
 		let v = url;
 		if (v === null) v = this.constructURLFromMd5(md5);
-
-		if (this.options.useCache && this.cached(id)) {
-			this.addToCache(info);
-			return this.sendToParent("skip", id, "cache", range[0], range[1]);
-		}
-		else if (fs.existsSync(`${this.dir}/${id}.${ext}`) && !this.options.overwriteExisting) {
-			this.addToCache(info);
-			return this.sendToParent("skip", id, "fileExists", range[0], range[1]);
-		}
-		else if (ext === "swf") {
-			this.addToCache(info);
-			return this.sendToParent("skip", id, "flash", range[0], range[1]);
-		}
-		else if (ext === "webm") {
-			this.addToCache(info);
-			return this.sendToParent("skip", id, "video", range[0], range[1]);
-		}
 
 		return new Promise<void>((a, b) => {
 			const start = performance.now();
@@ -105,10 +68,10 @@ class Worker {
 						.on("error", b)
 						.on("data", (d) => data.push(d))
 						.on("end", () => {
-							this.addToCache(info);
+							this.processed++;
 							const end = performance.now();
 							fs.writeFileSync(`${this.dir}/${id}.${ext}`, Buffer.concat(data));
-							this.sendToParent("post-finish", id, parseFloat((end - start).toFixed(3)), range[0], range[1]);
+							this.sendToParent("post-finish", id, parseFloat((end - start).toFixed(3)), range[0], range[1], info);
 							return a();
 						})
 				})
@@ -131,10 +94,11 @@ class Worker {
 
 // figure out if we're actually in a worker
 if (!isMainThread) {
-	parentPort!.on("message", (value) => {
-		switch (value.event) {
-			case "init": return Worker.init(value.data);
-			case "start": return Worker.start(value.data, value.range);
-		}
-	});
+	parentPort!
+		.on("message", (value) => {
+			switch (value.event) {
+				case "init": return Worker.init(value.data);
+				case "start": return Worker.start(value.data, value.range);
+			}
+		});
 }

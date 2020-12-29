@@ -26,7 +26,7 @@ e
 
 	})
 	.on("post-finish", (threadId, id, time, current, total) => {
-		p.increment(1);
+		// p.increment(1);
 		i++;
 		log(`[${i}/${t}]: Finished downloading post #${id} in ${ms(time, true)}`);
 	})
@@ -34,7 +34,7 @@ e
 	.on("ready", (threadId) => log(`Thread #${threadId} is ready.`))
 	.on("start-recieved", (threadId, amount) => log(`[Thread #${threadId}]: Recieved start with ${amount} posts.`))
 	.on("thread-done", (threadId, amount, time) => log(`[Thread #${threadId}]: Finished downloading ${amount} posts in ${ms(time, true)}`))
-	.on("skip", (threadId, id, reason, current, total) => {
+	.on("skip", (id, reason) => {
 		// p.increment(1);
 		i++;
 		log(`[${i}/${t}]: Skipped post #${id} due to ${reason === "cache" ? "it being cached" :

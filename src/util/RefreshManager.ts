@@ -1,8 +1,14 @@
+import { EventEmitter } from "tsee";
 import E621Downloader from "..";
 
-export default class RefreshManager {
+export default class RefreshManager extends EventEmitter<{
+	"error": (err: Error | string, extra?: any, threadId?: number) => void;
+	"warn": (info: string, threadId?: number) => void;
+	"debug": (info: string, threadId?: number) => void;
+}> {
 	main: E621Downloader;
 	constructor(main: E621Downloader) {
+		super();
 		this.main = main;
 	}
 

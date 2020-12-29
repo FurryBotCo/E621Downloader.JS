@@ -10,9 +10,12 @@ import { performance } from "perf_hooks";
 import CacheManager from "./util/CacheManager";
 import RefreshManager from "./util/RefreshManager";
 
+
 export interface Options extends Partial<Omit<E621Downloader["options"], "saveDirectory">> {
 	saveDirectory: E621Downloader["options"]["saveDirectory"];
 };
+
+type OmitFirstArg<T> = T extends (x: any, ...args: infer P) => infer R ? (...args: P) => R : never;
 
 export type VALID_ERROR_CODES = `ERR_${"MAX_TAGS" | "ALREADY_ACTIVE" | "INVALID_THREADS" | "INVALID_THREADS_2" | "NO_POSTS"}`;
 export class E621Error<T extends VALID_ERROR_CODES = VALID_ERROR_CODES> extends Error {
@@ -32,20 +35,25 @@ export interface Post {
 	tags: string[];
 };
 
-class E621Downloader extends EventEmitter<{
-	"error": (err: Error | string, extra?: any) => void;
+type Events = {
+	"error": (location: "main" | "cache" | "refresh", err: Error | string, extra?: any, threadId?: number) => void;
+	"warn": (location: "main" | "cache" | "refresh", info: string, threadId?: number) => void;
+	"debug": (location: "main" | "cache" | "refresh", info: string, threadId?: number) => void;
 	"ready": (id: number, workerId: number) => void;
 	"start-recieved": (threadId: number, amount: number) => void;
 	"thread-done": (threadId: number, amount: number, time: number) => void;
-	"post-finish": (threadId: number, id: number, time: number, current: number, total: number) => void;
-	"skip": (threadId: number, id: number, reason: "cache" | "fileExists" | "video" | "flash", current: number, total: number) => void;
+	"post-finish": (threadId: number, id: number, time: number, current: number, total: number, post: Post) => void;
+	"skip": (id: number, reason: "cache" | "fileExists" | "video" | "flash") => void;
 	"download-done": (total: number, time: number) => void;
 	"fetch-page": (page: number, count: number, time: number) => void;
 	"fetch-finish": (total: number, time: number) => void;
 	"download-start": (tags: string[], folder: string, dir: string, threads: 1 | 2 | 3, usingAuth: boolean) => void;
 	"thread-spawn": (id: number, workerId: number) => void;
 	"cache-update": (threadId: number, ...args: Parameters<CacheManager["update"]>) => void;
-}> {
+};
+
+
+class E621Downloader extends EventEmitter<Events> {
 	options: {
 		/**
 		 * The directory to download images to (they will be in subdirectories)
@@ -112,7 +120,6 @@ class E621Downloader extends EventEmitter<{
 		resolve: (() => void) | null;
 		reject: ((err: Error) => void) | null;
 		total: number;
-		processed: number;
 		postsPerWorker: Map<number, number>;
 		start: number;
 		end: number;
@@ -122,6 +129,9 @@ class E621Downloader extends EventEmitter<{
 		}[];
 		tags: string[];
 		folder: string | null;
+		done: Post[];
+		threadCount: number;
+		finishedCount: number;
 	};
 	constructor(opts: Options) {
 		super();
@@ -147,10 +157,37 @@ class E621Downloader extends EventEmitter<{
 			refresh: undefined as any // we have to do this weird due to the way RefreshManager works
 		};
 		this.managers.refresh = new RefreshManager(this);
+
+		this.cache
+			.on("debug", (...args) => this.emit("debug", "cache", ...args))
+			.on("error", (...args) => this.emit("error", "cache", ...args))
+			.on("warn", (...args) => this.emit("warn", "cache", ...args));
+
+		this.refresh
+			.on("debug", (...args) => this.emit("debug", "refresh", ...args))
+			.on("error", (...args) => this.emit("error", "refresh", ...args))
+			.on("warn", (...args) => this.emit("warn", "refresh", ...args));
+
+
 	}
 
 	get cache() { return this.managers.cache; }
 	get refresh() { return this.managers.refresh; }
+
+
+	get cacheObj() { return !this.current ? null : this.cache.get().data.find(v => v.tags.join(" ").toLowerCase() === this.current.tags.join(" ").toLowerCase()) }
+	cached(id: number) {
+		const c = this.cacheObj?.posts?.map(v => v.id);
+		if (!c || c.length === 0) return false;
+		return c.includes(id);
+	}
+	addToCache(post: Post, ten = true) {
+		this.current.done.push(post);
+		if (this.options.useCache) {
+			if (ten && (this.current.done.length % 10) !== 0) return;
+			this.cache.update(this.current.tags, this.current.done, this.current.folder!);
+		}
+	}
 
 	private get auth() { return this.options.auth === null ? null : ((this.options.auth as any).basic as string || Buffer.from(`${(this.options.auth as any).username}:${(this.options.auth as any).apiKey}`).toString("base64")) || null }
 
@@ -161,7 +198,7 @@ class E621Downloader extends EventEmitter<{
 	 * @param {(1 | 2 | 3)} [threads=1] - The number of simultaneous downloads to run. Hard limit of 3 maximum. This is the limit an e621 admin {@link https://e621.download/threads.png|asked us to use}. If you manually edit the code and get blocked, we do not take responsibility for that.
 	 */
 	async startDownload(tags: string[], folder?: string, threads: (1 | 2 | 3) = 1) {
-		if (!tags || tags.length === 0) throw new TypeError("A list of tags is required.");
+		if (!tags || tags.length === 0 || tags.join(" ").length === 0) throw new TypeError("A list of tags is required.");
 		// bravo if you manage to hit this without doing it on purpose
 		if (tags.length > 40) throw new E621Error("ERR_MAX_TAGS", "A maximum of 40 tags are allowed.");
 		if (this.current.active) throw new E621Error("ERR_ALREADY_ACTIVE", "A download is already active. If this is an issue, run the `reset` function.");
@@ -194,16 +231,49 @@ class E621Downloader extends EventEmitter<{
 		}
 
 		this.current.start = performance.now();
-		const list = await this.fetchPosts(tags, this.auth, 1, null);
-		if (list.length === 0) throw new E621Error("ERR_NO_POSTS", `No posts were found for the tag(s) "${tags.join(" ")}".`);
+		this.current.tags = tags;
+		const p = await this.fetchPosts(tags, this.auth, 1, null);
+		if (p.length === 0) throw new E621Error("ERR_NO_POSTS", `No posts were found for the tag(s) "${tags.join(" ")}".`);
+
+		// I wanted to do a for loop, but it continued on before the loop got done
+		// and this doesn't require splicing, which can be messy
+		const list = p.filter(post => {
+			if (this.options.useCache && this.cached(post.id)) {
+				this.addToCache(post); // why not
+				this.emit("skip", post.id, "cache");
+				return false;
+			}
+
+			if (fs.existsSync(`${this.options.saveDirectory}/${folder}${post.id}.${post.ext}`) && !this.options.overwriteExisting) {
+				this.addToCache(post);
+				this.emit("skip", post.id, "fileExists");
+				return false;
+			}
+
+			if (post.ext === "swf" && this.options.skipFlash) {
+				this.addToCache(post);
+				this.emit("skip", post.id, "flash");
+				return false;
+			}
+
+			if (post.ext === "webm" && this.options.skipVideo) {
+				this.addToCache(post);
+				list.splice(list.indexOf(post), 1);
+				return false;
+			}
+
+			return true;
+		});
+
 		Object.assign(this.current, {
 			total: list.length,
 			posts: list.map(l => ({
 				id: l.id,
 				md5: l.md5
-			})),
-			tags
+			}))
 		});
+
+		if (list.length < threads) this.emit("warn", "main", `Download of tag(s) "${tags.join(" ")}" has less tags than threads, some threads will be unused.`);
 		const posts = chunk(list, Math.ceil(list.length / threads));
 		for (const [i, w] of this.threads) {
 			this.current.postsPerWorker.set(i, posts[i].length);
@@ -240,55 +310,82 @@ class E621Downloader extends EventEmitter<{
 			resolve: null,
 			reject: null,
 			total: 0,
-			processed: 0,
 			postsPerWorker: new Map(),
 			start: 0,
 			end: 0,
 			posts: [],
 			tags: [],
-			folder
+			folder,
+			done: [],
+			threadCount: 0,
+			finishedCount: 0
 		};
 	}
 
-	private handleWorkerMessage(value: {
-		event: string;
+	private handleWorkerMessage<T extends keyof Events>(value: {
+		event: T;
 		fromId: number;
-		data: any[];
+		data: Parameters<Events[T]>;
 	}) {
+		// I have to specifically narrow the types myself because typescript refuses to do so
 		switch (value.event) {
-			case "cache-update": {
-				(this.cacheUpdateHandler as any)(...value.data);
+			case "ready": {
+				const v = value.data as unknown as Parameters<OmitFirstArg<Events["ready"]>>;
+				this.emit("ready", value.fromId, ...v);
 				break;
 			}
 
 			case "thread-done": {
-				(this.endHandler as any)(value.fromId, ...value.data);
+				const v = value.data as unknown as Parameters<OmitFirstArg<Events["thread-done"]>>;
+				this.emit("thread-done", value.fromId, ...v);
+				break;
+			}
+
+			case "post-finish": {
+				const v = value.data as unknown as Parameters<OmitFirstArg<Events["post-finish"]>>;
+				this.emit("post-finish", value.fromId, ...v);
+				this.addToCache(v[4]);
+				break;
+			}
+
+			case "debug": {
+				const v = value.data as unknown as Parameters<OmitFirstArg<Events["debug"]>>;
+				this.emit("debug", "main", v[0], value.fromId);
+				break;
+			}
+
+			case "error": {
+				const v = value.data as unknown as Parameters<OmitFirstArg<Events["error"]>>;
+				this.emit("error", "main", v[0], v[1] || undefined, value.fromId);
+				break;
+			}
+
+			case "warn": {
+				const v = value.data as unknown as Parameters<OmitFirstArg<Events["warn"]>>;
+				this.emit("warn", "main", v[0], value.fromId);
+				break;
+			}
+
+			// internal event only
+			case "finished": {
+				this.cache.update(this.current.tags, this.current.done, this.current.folder!);
+				return this.endHandler(value.fromId);
 				break;
 			}
 		}
-
-		this.emit(value.event as any, value.fromId, ...value.data);
 	}
 
-	private get cacheUpdateHandler(): CacheManager["update"] {
-		return this.cache.update.bind(this.cache);
-	}
-
-	private async endHandler(id: number, posts: number, time: number) {
+	private async endHandler(id: number) {
 		await new Promise((a, b) => setTimeout(a, 100));
-		const p = this.current.postsPerWorker.get(id);
-		if (p === undefined) {
-			this.emit("error", `Worker done without post amount in Main (Worker #${id})`);
-			return;
-		} else {
-			this.current.processed += posts;
-			if (this.current.processed >= this.current.total) {
-				this.current.end = performance.now();
-				this.emit("download-done", this.current.total, parseFloat((this.current.end - this.current.start).toFixed(3)));
-				if (this.options.useCache) this.cache.update(this.current.tags, this.current.posts, this.current.folder || this.current.tags[0]);
-				this.current.resolve!();
-				this.reset();
-			}
+		const t = this.threads.get(id);
+		if (!t) this.emit("warn", "main", `Worker (#${id}) done without thread reference`);
+		this.current.finishedCount++;
+		if (this.current.finishedCount >= this.current.threadCount) {
+			this.current.end = performance.now();
+			this.emit("download-done", this.current.total, parseFloat((this.current.end - this.current.start).toFixed(3)));
+			if (this.options.useCache) this.cache.update(this.current.tags, this.current.posts, this.current.folder || this.current.tags[0]);
+			this.current.resolve!();
+			this.reset();
 		}
 	}
 
@@ -321,7 +418,7 @@ class E621Downloader extends EventEmitter<{
 					.on("end", async () => {
 						const d = JSON.parse(Buffer.concat(data).toString());
 						if (d.success === false) {
-							if (d.message === "SessionLoader::AuthenticationFailure") return this.emit("error", "Authentication failed.");
+							if (d.message === "SessionLoader::AuthenticationFailure") return this.emit("error", "main", "Authentication failed.");
 							else return this.emit("error", d.message, d);
 						}
 
