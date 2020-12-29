@@ -43,7 +43,7 @@ type Events = {
 	"start-recieved": (threadId: number, amount: number) => void;
 	"thread-done": (threadId: number, amount: number, time: number) => void;
 	"post-finish": (threadId: number, id: number, time: number, current: number, total: number, post: Post) => void;
-	"skip": ((id: number, reason: "cache" | "fileExists" | "video" | "flash") => void) | ((id: number, reason: "blacklisted", tag: string) => void);
+	"skip": (id: number, reason: "cache" | "fileExists" | "video" | "flash" | "blacklisted", tag?: string) => void;
 	"download-done": (total: number, time: number) => void;
 	"fetch-page": (page: number, count: number, time: number) => void;
 	"fetch-finish": (total: number, time: number) => void;
