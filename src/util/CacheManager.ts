@@ -2,6 +2,8 @@ import * as fs from "fs-extra";
 import { EventEmitter } from "tsee";
 import E621Downloader from "..";
 import { v4 as uuid } from "uuid";
+import CacheConverter from "./CacheConverter";
+import path from "path";
 
 export interface Cache {
 	version: typeof CacheManager["VERSION"];
@@ -52,13 +54,15 @@ export default class CacheManager extends EventEmitter<{
 	static VERSION = 3 as const;
 	folder: string;
 	minify: boolean;
-	constructor(folder: string, minify = true) {
+	autoConvert: boolean;
+	constructor(folder: string, minify = true, autoConvert = true) {
 		super();
 		if (!folder) throw new TypeError("Invalid cache folder.");
 		this.folder = folder;
 		if (!fs.existsSync(this.folder)) fs.mkdirpSync(this.folder);
 		if (!fs.existsSync(this.loc("data"))) fs.mkdirpSync(this.loc("data"));
-		this.minify = !!minify;
+		this.minify = !!(minify ?? true);
+		this.autoConvert = !!(autoConvert ?? true);
 	}
 
 	static loc(type: "main" | "data", folder: string) {
@@ -92,11 +96,17 @@ export default class CacheManager extends EventEmitter<{
 			if (o.version !== CacheManager.VERSION) throw new TypeError(`Unsupported cache file version: ${o.version}`);
 		} catch (e) {
 			if (e.message.indexOf("file version") !== -1) {
-				this.emit("warn", `The cache file version ${v!} is no longer supported. Your cache file has been moved, and has been replaced with a fresh, empty version.`);
-				const d = Date.now();
-				fs.renameSync(this.loc("main"), `${this.loc("main").replace(/\.json/, "")}-${d}.unsupported.json`);
-				if (fs.existsSync(this.loc("data"))) fs.renameSync(this.loc("data"), `${this.loc("data")}.${d}.unsupported`);
-				fs.mkdirpSync(this.loc("data"));
+				if (this.autoConvert) {
+					this.emit("warn", `The cache file version ${v!} is no longer supported. We're attempting to automatically convert it for you..`);
+					CacheConverter.fromUnknown(path.resolve(`${this.loc("data")}/../`));
+					return this.get(fix);
+				} else {
+					this.emit("warn", `The cache file version ${v!} is no longer supported. Your cache file has been moved, and has been replaced with a fresh, empty version.`);
+					const d = Date.now();
+					fs.renameSync(this.loc("main"), `${this.loc("main").replace(/\.json/, "")}-${d}.unsupported.json`);
+					if (fs.existsSync(this.loc("data"))) fs.renameSync(this.loc("data"), `${this.loc("data")}.${d}.unsupported`);
+					fs.mkdirpSync(this.loc("data"));
+				}
 			} else if (e.message.indexOf("ENOENT") !== -1) this.emit("warn", "Cache file does not exist, creating it..");
 			else console.error("Error parsing cache file:", e);
 			if (fs.existsSync(this.loc("main"))) fs.renameSync(this.loc("main"), `${this.loc("main").replace(/\.json/, "")}-${Date.now()}.error.json`);

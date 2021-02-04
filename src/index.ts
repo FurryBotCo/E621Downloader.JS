@@ -121,6 +121,10 @@ class E621Downloader extends EventEmitter<Events> {
 		 * If we should save info about a post in the cache
 		 */
 		savePostInfo: boolean;
+		/**
+		 * If old cache versions should be auto converted into new formats.
+		 */
+		autoConvertCache: boolean;
 	};
 	threads: Map<number, Worker>;
 	private managers: {
@@ -161,7 +165,8 @@ class E621Downloader extends EventEmitter<Events> {
 			cacheDir: opts.cacheDir || path.resolve(`${opts.saveDirectory}${opts.saveDirectory.endsWith("E621Downloader/Files") ? "/.." : ""}/cache`),
 			useCache: !!(opts.useCache ?? true),
 			minifyCache: !!(opts.minifyCache ?? true),
-			savePostInfo: !!opts.savePostInfo
+			savePostInfo: !!opts.savePostInfo,
+			autoConvertCache: !!(opts.autoConvertCache ?? true)
 		};
 		if (!fs.existsSync(this.options.saveDirectory)) throw new TypeError(`saveDirectory "${this.options.saveDirectory}" does not exist on disk.`);
 		if (!fs.existsSync(this.options.cacheDir)) fs.mkdirpSync(this.options.cacheDir);

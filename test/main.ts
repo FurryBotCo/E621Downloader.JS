@@ -8,6 +8,8 @@ const e = new E621Downloader({
 });
 import { Time } from "@uwu-codes/utils";
 
+process.env.INVALID_CACHE_ERROR = "1";
+
 process.nextTick(async () => {
 	let i = 0, t = 0;
 	const v = await e
