@@ -1,6 +1,5 @@
 import { EventEmitter } from "tsee";
 import E621Downloader from "..";
-import deasync from "deasync";
 
 export default class RefreshManager extends EventEmitter<{
 	"error": (err: Error | string, extra?: any, threadId?: number) => void;

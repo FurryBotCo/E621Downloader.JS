@@ -2,7 +2,7 @@
 
 import E621Downloader, { Options } from "..";
 import progress from "cli-progress";
-import ms from "../util/Time";
+import { Time } from "@uwu-codes/utils";
 
 function refresh(o: { [k: string]: any; }) {
 	const options: Options = {
@@ -23,7 +23,7 @@ function refresh(o: { [k: string]: any; }) {
 	const p = new progress.SingleBar({
 		hideCursor: true
 	});
-	function log(...a) {
+	function log(...a: any[]) {
 		process.stdout.clearLine(0);
 		process.stdout.cursorTo(0);
 		console.log(...a);
@@ -32,7 +32,7 @@ function refresh(o: { [k: string]: any; }) {
 	let i = 0, t = 0;
 	e
 		.on("fetch-finish", (total, time) => {
-			log(`Finished fetching ${total} posts in ${ms(time, true)}`);
+			log(`Finished fetching ${total} posts in ${Time.ms(time, true, true, true)}`);
 			p.start(total, 0, {
 				speed: "N/A"
 			});
@@ -42,12 +42,12 @@ function refresh(o: { [k: string]: any; }) {
 		.on("post-finish", (threadId, id, time, current, total) => {
 			p.increment(1);
 			i++;
-			// log(`[${i}/${t}]: Finished downloading post #${id} in ${ms(time, true)}`);
+			// log(`[${i}/${t}]: Finished downloading post #${id} in ${Time.ms(time, true, true, true)}`);
 		})
 		.on("error", (err, extra) => console.error("Error:", err))
 		.on("ready", (threadId) => log(`Thread #${threadId} is ready.`))
 		.on("start-recieved", (threadId, amount) => log(`[Thread #${threadId}]: Recieved start with ${amount} posts.`))
-		.on("thread-done", (threadId, amount, time) => log(`[Thread #${threadId}]: Finished downloading ${amount} posts in ${ms(time, true)}`))
+		.on("thread-done", (threadId, amount, time) => log(`[Thread #${threadId}]: Finished downloading ${amount} posts in ${Time.ms(time, true, true, true)}`))
 		.on("skip", (id, reason, tag) => {
 			p.increment(1);
 			i++;
@@ -62,9 +62,9 @@ function refresh(o: { [k: string]: any; }) {
 		})
 		.on("download-done", (total, skipped, time) => {
 			p.stop();
-			log(`Finished downloading ${total} posts (skipped ${skipped}) in ${ms(time, true)}`);
+			log(`Finished downloading ${total} posts (skipped ${skipped}) in ${Time.ms(time, true, true, true)}`);
 		})
-		.on("fetch-page", (page, count, time) => log(`Finished fetching page #${page} in ${ms(time, true)} (had ${count} posts)`))
+		.on("fetch-page", (page, count, time) => log(`Finished fetching page #${page} in ${Time.ms(time, true, true, true)} (had ${count} posts)`))
 		.on("download-start", (tags, folder, dir, threads) => {
 			i = 0;
 			log(`Started download with tags "${tags.join(" ")}" into directory "${dir}", with ${threads} threads.`);

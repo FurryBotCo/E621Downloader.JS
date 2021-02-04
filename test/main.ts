@@ -3,29 +3,30 @@ const e = new E621Downloader({
 	saveDirectory: `${__dirname}/files`,
 	cacheDir: `${__dirname}/files/cache`,
 	overwriteExisting: false,
-	useCache: false
+	useCache: true,
+	savePostInfo: true
 });
-import ms from "../src/util/Time";
+import { Time } from "@uwu-codes/utils";
 
 process.nextTick(async () => {
 	let i = 0, t = 0;
 	const v = await e
 		.on("fetch-finish", (total, time) => {
-			console.log(`Finished fetching ${total} posts in ${ms(time, true)}`);
+			console.log(`Finished fetching ${total} posts in ${Time.ms(time, true, true, true)}`);
 			t = total;
 
 		})
 		.on("post-finish", (threadId, id, time, current, total) => {
 			i++;
-			console.log(`[${i}/${t}]: Finished downloading post #${id} in ${ms(time, true)}`);
+			console.log(`[${i}/${t}]: Finished downloading post #${id} in ${Time.ms(time, true, true, true)}`);
 		})
-		.on("error", (err, extra) => console.error("Error:", err))
+		.on("error", (loc, err, extra) => console.error(`Error[${loc}]:`, err))
+		.on("warn", (loc, info, extra) => console.warn(`Warn[${loc}]:`, info))
 		.on("ready", (threadId) => console.log(`Thread #${threadId} is ready.`))
 		.on("start-recieved", (threadId, amount) => console.log(`[Thread #${threadId}]: Recieved start with ${amount} posts.`))
-		.on("thread-done", (threadId, amount, time) => console.log(`[Thread #${threadId}]: Finished downloading ${amount} posts in ${ms(time, true)}`))
+		.on("thread-done", (threadId, amount, time) => console.log(`[Thread #${threadId}]: Finished downloading ${amount} posts in ${Time.ms(time, true, true, true)}`))
 		.on("skip", (id, reason, tag) => {
 			i++;
-			// because it can break stuff
 			console.log(`[${i}/${t}]: Skipped post #${id} due to ${reason === "cache" ? "it being cached" :
 				reason === "video" ? "it being a video, and skipVideo being true" :
 					reason === "flash" ? "it being flash, and skipFlash being true" :
@@ -35,9 +36,9 @@ process.nextTick(async () => {
 				}.`);
 		})
 		.on("download-done", (total, skipped, time) => {
-			console.log(`Finished downloading ${total} posts (skipped ${skipped}) in ${ms(time, true)}`);
+			console.log(`Finished downloading ${total} posts (skipped ${skipped}) in ${Time.ms(time, true, true, true)}`);
 		})
-		.on("fetch-page", (page, count, time) => console.log(`Finished fetching page #${page} in ${ms(time, true)} (had ${count} posts)`))
+		.on("fetch-page", (page, count, time) => console.log(`Finished fetching page #${page} in ${Time.ms(time, true, true, true)} (had ${count} posts)`))
 		.on("download-start", (tags, folder, dir, threads) => {
 			i = 0;
 			console.log(`Started download with tags "${tags.join(" ")}" into directory "${dir}", with ${threads} threads.`);

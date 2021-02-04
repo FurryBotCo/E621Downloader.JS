@@ -1,7 +1,6 @@
 import * as fs from "fs-extra";
 import { EventEmitter } from "tsee";
 import E621Downloader from "..";
-import path from "path";
 import { v4 as uuid } from "uuid";
 
 export interface Cache {
@@ -14,10 +13,29 @@ export interface Cache {
 	}[];
 }
 
-export interface CachePost {
+export interface CachePostWithoutInfo {
 	id: number;
+	// may be undefined or null on legacy
+	ext: string;
 	md5: string;
+	info: null;
 }
+
+export interface CachePostWithInfo {
+	id: number;
+	// may be undefined or null on legacy
+	ext: string;
+	md5: string;
+	info: {
+		fav: number;
+		score: number;
+		rating: "s" | "q" | "e";
+		sources: string[];
+		tags: string[];
+	};
+}
+
+export type CachePost = CachePostWithoutInfo | CachePostWithInfo;
 
 class OwOError extends Error {
 	constructor(message?: string) {
@@ -31,7 +49,7 @@ export default class CacheManager extends EventEmitter<{
 	"warn": (info: string, threadId?: number) => void;
 	"debug": (info: string, threadId?: number) => void;
 }> {
-	static VERSION = 2 as const;
+	static VERSION = 3 as const;
 	folder: string;
 	minify: boolean;
 	constructor(folder: string, minify = true) {
@@ -74,11 +92,14 @@ export default class CacheManager extends EventEmitter<{
 			if (o.version !== CacheManager.VERSION) throw new TypeError(`Unsupported cache file version: ${o.version}`);
 		} catch (e) {
 			if (e.message.indexOf("file version") !== -1) {
-				this.emit("warn", `The cache file version ${v!} is no longer supported. Your cache file has been moved, and is being replaced with a fresh, empty version.`);
-			}
-			if (e.message.indexOf("ENOENT") !== -1) this.emit("warn", "Cache file does not exist, creating it..");
+				this.emit("warn", `The cache file version ${v!} is no longer supported. Your cache file has been moved, and has been replaced with a fresh, empty version.`);
+				const d = Date.now();
+				fs.renameSync(this.loc("main"), `${this.loc("main").replace(/\.json/, "")}-${d}.unsupported.json`);
+				if (fs.existsSync(this.loc("data"))) fs.renameSync(this.loc("data"), `${this.loc("data")}.${d}.unsupported`);
+				fs.mkdirpSync(this.loc("data"));
+			} else if (e.message.indexOf("ENOENT") !== -1) this.emit("warn", "Cache file does not exist, creating it..");
 			else console.error("Error parsing cache file:", e);
-			if (fs.existsSync(this.loc("main"))) fs.renameSync(this.loc("main"), `${this.loc("main").replace(/\.json/, "")}-${Date.now()}.old.json`);
+			if (fs.existsSync(this.loc("main"))) fs.renameSync(this.loc("main"), `${this.loc("main").replace(/\.json/, "")}-${Date.now()}.error.json`);
 			let d: Cache["data"];
 			// this assumes the file is using the old `{ key: string[] }` format
 			if (e instanceof OwOError && o!) d = Object.keys(o as any).map(v => {
@@ -137,11 +158,7 @@ export default class CacheManager extends EventEmitter<{
 			throw e;
 			return;
 		}
-		// remove extraneous properties
-		posts = posts.map(p => ({
-			id: p.id,
-			md5: p.md5
-		}));
+
 		const c = this.get();
 		const o = JSON.parse(JSON.stringify(c));
 		const j = c.data.find(v => v.tags.join(" ") === tags.join(" "));
@@ -156,7 +173,7 @@ export default class CacheManager extends EventEmitter<{
 		}
 		else i = (c.data.push(v)) - 1;
 		// just in case
-		c.data = this.unique(...c.data);
+		c.data = this.uniqueOverall(...c.data);
 		if (last) c.data[i].lastDownloaded = Date.now();
 		// don't touch the file if we don't need to
 		if (JSON.stringify(c) === JSON.stringify(o)) {
@@ -196,7 +213,7 @@ export default class CacheManager extends EventEmitter<{
 		if (!loc) throw new TypeError(`Unable to determine cache location for tag(s) "${tags.join(" ")}"`);
 		const d = this.getPosts(tags);
 
-		const j = this.unique(...[
+		const j = this.uniquePosts(...[
 			...d,
 			...posts
 		]);
@@ -212,10 +229,38 @@ export default class CacheManager extends EventEmitter<{
 		return;
 	}
 
-	unique<T>(...v: T[]): T[] {
+	uniqueOverall<T>(...v: T[]): T[] {
 		if (Array.isArray(v[0])) v = [...(v as any)[0]];
 		// we have to stringify & parse because of objects and such
-		return Array.from(new Set(v.map(j => JSON.stringify(j)))).map(v => JSON.parse(v));
+		return Array.from(new Set(v.map(j => JSON.stringify(j))).values()).map(v => JSON.parse(v));
+	}
+
+	uniquePosts<T extends { id: number; }>(...v: T[]): T[] {
+		if (Array.isArray(v[0])) v = [...(v as any)[0]];
+		// we have to stringify & parse because of objects and such
+		const arr: T[] = Array.from(new Set(v.map(j => JSON.stringify(j))).values()).map(v => JSON.parse(v));
+		const id: { n: number; pos: number; }[] = [];
+		// we have to walk through it to remove instances that have changed slightly
+		for (const p of arr) {
+			const j = id.map(k => k.n);
+			const b = arr.indexOf(p);
+			if (j.includes(p.id)) {
+				const a = id.find(l => l.n === p.id)!.pos;
+
+				const c = JSON.stringify(arr[a]);
+				const d = JSON.stringify(arr[b]);
+
+				// prefer the longer one since it's likely newer
+				if (c.length > d.length) arr.splice(b, 1);
+				else arr.splice(a, 1);
+			}
+			else id.push({
+				n: p.id,
+				pos: b
+			});
+		}
+
+		return arr;
 	}
 
 	isCached(id: number, tags: string[]) {

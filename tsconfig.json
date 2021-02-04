@@ -3,31 +3,37 @@
     "compilerOptions": {
         "outDir": "./build",
         "allowJs": true,
-        "target": "es2020",
+        "target": "ESNext",
         "baseUrl": "src",
         "resolveJsonModule": true,
         "esModuleInterop": true,
         "allowSyntheticDefaultImports": true,
         "moduleResolution": "node",
         "module": "commonjs",
-        "strictNullChecks": true,
         "paths": {},
         "typeRoots": [
             "./node_modules/@types",
             "./src/util/@types"
-		],
+        ],
 		"inlineSourceMap": true,
-		"declaration": true
+		"charset": "UTF-8",
+		"downlevelIteration": true,
+		"newLine": "lf",
+        "strict": true,
+        "strictBindCallApply": true,
+        "strictPropertyInitialization": false,
+        "declaration": true
     },
     "include": [
-        "**/*"
+		"**/*"
     ],
     "exclude": [
         "node_modules",
         "build",
         "out",
         "tmp",
-		"logs",
-		"test"
+        "logs",
+        "test",
+        "./ConfigManager.ts"
     ]
 }

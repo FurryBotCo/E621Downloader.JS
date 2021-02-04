@@ -7,7 +7,7 @@ import chunk from "chunk";
 import pkg from "../package.json";
 import "source-map-support/register";
 import { performance } from "perf_hooks";
-import CacheManager from "./util/CacheManager";
+import CacheManager, { CachePost } from "./util/CacheManager";
 import RefreshManager from "./util/RefreshManager";
 
 
@@ -33,6 +33,10 @@ export interface Post {
 	ext: string;
 	md5: string;
 	tags: string[];
+	fav: number;
+	score: number;
+	rating: "s" | "q" | "e";
+	sources: string[];
 };
 
 type Events = {
@@ -113,6 +117,10 @@ class E621Downloader extends EventEmitter<Events> {
 		 * If we should cache downloaded posts (the post ids)
 		 */
 		useCache: boolean;
+		/**
+		 * If we should save info about a post in the cache
+		 */
+		savePostInfo: boolean;
 	};
 	threads: Map<number, Worker>;
 	private managers: {
@@ -152,7 +160,8 @@ class E621Downloader extends EventEmitter<Events> {
 			tagBlacklist: opts.tagBlacklist || [],
 			cacheDir: opts.cacheDir || path.resolve(`${opts.saveDirectory}${opts.saveDirectory.endsWith("E621Downloader/Files") ? "/.." : ""}/cache`),
 			useCache: !!(opts.useCache ?? true),
-			minifyCache: !!(opts.minifyCache ?? true)
+			minifyCache: !!(opts.minifyCache ?? true),
+			savePostInfo: !!opts.savePostInfo
 		};
 		if (!fs.existsSync(this.options.saveDirectory)) throw new TypeError(`saveDirectory "${this.options.saveDirectory}" does not exist on disk.`);
 		if (!fs.existsSync(this.options.cacheDir)) fs.mkdirpSync(this.options.cacheDir);
@@ -190,8 +199,23 @@ class E621Downloader extends EventEmitter<Events> {
 		this.current.done.push(post);
 		if (this.options.useCache) {
 			if (ten && (this.current.done.length % 10) !== 0) return;
-			this.cache.update(this.current.tags, this.current.done, this.current.folder!);
+			this.cache.update(this.current.tags, this.convertToCacheFormat(this.current.done), this.current.folder!);
 		}
+	}
+
+	private convertToCacheFormat(arr: Post[]) {
+		return arr.map<CachePost>(v => ({
+			id: v.id,
+			ext: v.ext,
+			md5: v.md5,
+			info: this.options.savePostInfo ? {
+				fav: v.fav,
+				score: v.score,
+				rating: v.rating,
+				sources: v.sources ?? [],
+				tags: v.tags
+			} : null
+		}));
 	}
 
 	private get auth() { return this.options.auth === null ? null : ((this.options.auth as any).basic as string || Buffer.from(`${(this.options.auth as any).username}:${(this.options.auth as any).apiKey}`).toString("base64")) || null }
@@ -416,7 +440,7 @@ class E621Downloader extends EventEmitter<Events> {
 
 			// internal event only
 			case "finished": {
-				this.cache.update(this.current.tags, this.current.done, this.current.folder!, true);
+				this.cache.update(this.current.tags, this.convertToCacheFormat(this.current.done), this.current.folder!, true);
 				return this.endHandler(value.fromId);
 				break;
 			}
@@ -438,7 +462,7 @@ class E621Downloader extends EventEmitter<Events> {
 	private async complete(p = true) {
 		this.current.end = performance.now();
 		this.emit("download-done", this.current.total, this.current.skipped, parseFloat((this.current.end - this.current.start).toFixed(3)));
-		if (this.options.useCache) this.cache.update(this.current.tags, this.current.posts, this.current.folder || this.current.tags[0]);
+		if (this.options.useCache) this.cache.update(this.current.tags, this.convertToCacheFormat(this.current.done), this.current.folder || this.current.tags[0]);
 		if (p) {
 			if (!this.current.resolve) {
 				this.emit("error", "main", new Error("Complete called without resolve function being present. This IS a bug."));
@@ -481,12 +505,16 @@ class E621Downloader extends EventEmitter<Events> {
 							else return this.emit("error", d.message, d);
 						}
 
-						posts.push(...d.posts.map(p => ({
+						posts.push(...(d.posts as any[]).map<Post>((p: any) => ({
 							id: p.id,
 							url: p.file.url,
 							ext: p.file.ext,
 							md5: p.file.md5,
-							tags: Object.keys(p.tags).map(v => p.tags[v]).reduce((a, b) => a.concat(b))
+							tags: Object.keys(p.tags).map(v => p.tags[v]).reduce((a, b) => a.concat(b)),
+							fav: p.fav_count,
+							score: p.score.total,
+							rating: p.rating,
+							sources: p.sources
 						})));
 						this.emit("fetch-page", page, d.posts.length, parseFloat((performance.now() - start).toFixed(3)));
 						if (d.posts.length === 320) {
