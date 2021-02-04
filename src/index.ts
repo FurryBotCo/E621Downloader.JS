@@ -260,7 +260,7 @@ class E621Downloader extends EventEmitter<Events> {
 				return false;
 			}
 
-			if (fs.existsSync(`${this.options.saveDirectory}/${folder}${post.id}.${post.ext}`) && !this.options.overwriteExisting) {
+			if (fs.existsSync(`${dir}/${post.id}.${post.ext}`) && !this.options.overwriteExisting) {
 				this.addToCache(post);
 				this.emit("skip", post.id, "fileExists");
 				this.current.skipped++;
@@ -281,14 +281,16 @@ class E621Downloader extends EventEmitter<Events> {
 				return false;
 			}
 
-			for (const t of post.tags) {
-				if (blacklistedTags!.includes(t.toLowerCase())) {
-					this.addToCache(post);
-					this.emit("skip", post.id, "blacklisted", t);
-					this.current.skipped++;
-					return false;
+			if (fs)
+
+				for (const t of post.tags) {
+					if (blacklistedTags!.includes(t.toLowerCase())) {
+						this.addToCache(post);
+						this.emit("skip", post.id, "blacklisted", t);
+						this.current.skipped++;
+						return false;
+					}
 				}
-			}
 
 			return true;
 		});
