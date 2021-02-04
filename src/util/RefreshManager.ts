@@ -36,13 +36,18 @@ export default class RefreshManager extends EventEmitter<{
 			};
 			error: Error | null;
 		}[] = [];
-		let cur = 0;
-		v: for await (const { tags: tg, lastFolder } of c.data) {
+		let cur = 0, i = 0;
+		const d = Date.now();
+		for await (const { tags: tg, lastFolder, lastDownloaded } of c.data) {
+			i++;
 			const tags = tg.map(t => t.toLowerCase().trim());
 			const posts = this.cache.getPosts(tags);
+			console.log(`[${i}/${c.data.length}] Running a refresh with the tag${tags.length === 1 ? "" : "s"} "${tags.join(" ")}"`);
+			if (lastDownloaded !== 0 && (lastDownloaded + 8.64e+7) > d) {
+				console.log(`Skipping refresh with the tag${tags.length === 1 ? "" : "s"} "${tags.join(" ")}", due to the "lastDownloaded" timestmap being less than 24 hours.`);
+				continue;
+			}
 			cur = Date.now();
-			console.log(`Running a refresh with the tag${tags.length === 1 ? "" : "s"} "${tags.join(" ")}"`);
-			let c: () => void;
 			await this.main.startDownload(tags, lastFolder, threads)
 				.then((total) => {
 					const end = Date.now();
