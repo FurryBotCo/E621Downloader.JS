@@ -56,7 +56,7 @@ class Worker {
 		const { id, url, md5, ext } = info;
 		// so we can make the url if absent
 		let v = url;
-		if (v === null) v = this.constructURLFromMd5(md5);
+		if (v === null) v = this.constructURLFromMD5(md5, ext);
 
 		return new Promise<void>((a, b) => {
 			const start = performance.now();
@@ -74,7 +74,7 @@ class Worker {
 						.on("end", () => {
 							this.processed++;
 							const end = performance.now();
-							// fs.writeFileSync(`${this.dir}/${id}.${ext}`, Buffer.concat(data));
+							fs.writeFileSync(`${this.dir}/${id}.${ext}`, Buffer.concat(data));
 							this.sendToParent("post-finish", id, parseFloat((end - start).toFixed(3)), range[0], range[1], info);
 							return a();
 						})
@@ -83,8 +83,8 @@ class Worker {
 		});
 	}
 
-	static constructURLFromMd5(md5: string) {
-		return `https://static1.e621.net/data/${md5.slice(0, 2)}/${md5.slice(2, 4)}/${md5}.png`;
+	static constructURLFromMD5(md5: string, ext = "png") {
+		return `https://static1.e621.net/data/${md5.slice(0, 2)}/${md5.slice(2, 4)}/${md5}.${ext}`;
 	}
 
 	static sendToParent(event: string, ...data: any[]) {
