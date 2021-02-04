@@ -4,7 +4,7 @@ import E621Downloader, { Options } from "..";
 import progress from "cli-progress";
 import { Time } from "@uwu-codes/utils";
 
-function downloader(o: { [k: string]: any; }) {
+export default function downloader(o: { [k: string]: any; }) {
 	const options: Options = {
 		saveDirectory: o.saveDirectory,
 		overwriteExisting: o.overwriteExisting,
@@ -53,5 +53,3 @@ function downloader(o: { [k: string]: any; }) {
 		.startDownload(o.tags && o.tags.split(" "), o.folder, Number(o.threads) as any || 1);
 
 }
-
-export default downloader;

@@ -9,6 +9,7 @@ program
 
 program
 	.command("download")
+	.storeOptionsAsProperties(true)
 	.description("Download posts.")
 	.requiredOption("--save-directory <dir>", "The directory to save images to.")
 	.requiredOption("--tags <tags>", "A space separated list of tags")
@@ -26,6 +27,7 @@ program
 
 program
 	.command("refresh")
+	.storeOptionsAsProperties(true)
 	.description("Refresh previously downloaded tags.")
 	.requiredOption("--save-directory <dir>", "The directory to save images to.")
 	.option("--username <username>", "Your e621 username for authentication.")
@@ -37,6 +39,14 @@ program
 	.option("--cache-file <file>", "The location to stort the cache file.")
 	.option("--threads <num>", "The number of threads to use while downloading. A number between 1 and 3.", "1")
 	.action((opts) => require("./refresh").default(opts));
+
+program
+	.command("convert")
+	.storeOptionsAsProperties(true)
+	.description("Convert old cache files into the new formats.")
+	.requiredOption("--dir <dir>", "The cache directory to convert.")
+	.option("--version <ver>", "The version to convert from (optional)")
+	.action((opts) => require("./convert").default(opts));
 
 program.parse(process.argv);
 

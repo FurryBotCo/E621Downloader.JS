@@ -4,7 +4,7 @@ import E621Downloader, { Options } from "..";
 import progress from "cli-progress";
 import { Time } from "@uwu-codes/utils";
 
-function refresh(o: { [k: string]: any; }) {
+export default function refresh(o: { [k: string]: any; }) {
 	const options: Options = {
 		saveDirectory: o.saveDirectory,
 		skipVideo: o.skipVideo,
