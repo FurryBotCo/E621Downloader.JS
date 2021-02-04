@@ -162,7 +162,7 @@ class E621Downloader extends EventEmitter<Events> {
 			skipVideo: !!(opts.skipVideo ?? true),
 			skipFlash: !!(opts.skipFlash ?? true),
 			tagBlacklist: opts.tagBlacklist || [],
-			cacheDir: opts.cacheDir || path.resolve(`${opts.saveDirectory}${opts.saveDirectory.endsWith("E621Downloader/Files") ? "/.." : ""}/cache`),
+			cacheDir: opts.cacheDir || E621Downloader.getDefaultCacheDir(opts.saveDirectory),
 			useCache: !!(opts.useCache ?? true),
 			minifyCache: !!(opts.minifyCache ?? true),
 			savePostInfo: !!opts.savePostInfo,
@@ -190,6 +190,10 @@ class E621Downloader extends EventEmitter<Events> {
 			.on("warn", (...args) => this.emit("warn", "refresh", ...args));
 
 
+	}
+
+	static getDefaultCacheDir(dir: string) {
+		return path.resolve(`${dir}${dir.endsWith("E621Downloader/Files") ? "/.." : ""}/cache`);
 	}
 
 	get cache() { return this.managers.cache; }

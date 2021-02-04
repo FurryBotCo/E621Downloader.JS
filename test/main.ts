@@ -1,7 +1,6 @@
 import E621Downloader from "../build/src";
 const e = new E621Downloader({
-	saveDirectory: `${__dirname}/files`,
-	cacheDir: `${__dirname}/files/cache`,
+	saveDirectory: `${__dirname}/files/E621Downloader/Files`,
 	overwriteExisting: false,
 	useCache: true,
 	savePostInfo: true
