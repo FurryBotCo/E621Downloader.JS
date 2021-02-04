@@ -43,8 +43,8 @@ function downloader(o: { [k: string]: any; }) {
 						reason === "blacklisted" ? `it having a blacklisted tag (${tag})` :
 							"unknown reason"
 			}.`))
-		.on("download-done", (total, time) => {
-			console.log(`Finished downloading ${total} posts in ${ms(time, true)}`);
+		.on("download-done", (total, skipped, time) => {
+			console.log(`Finished downloading ${total} posts (skipped ${skipped}) in ${ms(time, true)}`);
 			p.stop();
 		})
 		.on("fetch-page", (page, count, time) => console.log(`Finished fetching page #${page} in ${ms(time, true)} (had ${count} posts)`))

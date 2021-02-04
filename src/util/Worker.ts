@@ -74,7 +74,7 @@ class Worker {
 						.on("end", () => {
 							this.processed++;
 							const end = performance.now();
-							fs.writeFileSync(`${this.dir}/${id}.${ext}`, Buffer.concat(data));
+							// fs.writeFileSync(`${this.dir}/${id}.${ext}`, Buffer.concat(data));
 							this.sendToParent("post-finish", id, parseFloat((end - start).toFixed(3)), range[0], range[1], info);
 							return a();
 						})

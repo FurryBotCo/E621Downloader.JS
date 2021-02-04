@@ -1,6 +1,6 @@
 import * as fs from "fs-extra";
 import { EventEmitter } from "tsee";
-import { threadId, Worker } from "worker_threads";
+import { Worker } from "worker_threads";
 import path from "path";
 import * as https from "https";
 import chunk from "chunk";
@@ -44,7 +44,7 @@ type Events = {
 	"thread-done": (threadId: number, amount: number, time: number) => void;
 	"post-finish": (threadId: number, id: number, time: number, current: number, total: number, post: Post) => void;
 	"skip": (id: number, reason: "cache" | "fileExists" | "video" | "flash" | "blacklisted", tag?: string) => void;
-	"download-done": (total: number, time: number) => void;
+	"download-done": (total: number, skipped: number, time: number) => void;
 	"fetch-page": (page: number, count: number, time: number) => void;
 	"fetch-finish": (total: number, time: number) => void;
 	"download-start": (tags: string[], folder: string, dir: string, threads: 1 | 2 | 3, usingAuth: boolean) => void;
@@ -124,6 +124,7 @@ class E621Downloader extends EventEmitter<Events> {
 		resolve: (() => void) | null;
 		reject: ((err: Error) => void) | null;
 		total: number;
+		totalWithSkipped: number;
 		postsPerWorker: Map<number, number>;
 		start: number;
 		end: number;
@@ -136,6 +137,7 @@ class E621Downloader extends EventEmitter<Events> {
 		done: Post[];
 		threadCount: number;
 		finishedCount: number;
+		skipped: number;
 	};
 	constructor(opts: Options) {
 		super();
@@ -241,11 +243,13 @@ class E621Downloader extends EventEmitter<Events> {
 
 		this.current.start = performance.now();
 		this.current.tags = tags;
+		this.current.threadCount = threads;
 		const p = await this.fetchPosts(tags, this.auth, 1, null);
 		if (p.length === 0) throw new E621Error("ERR_NO_POSTS", `No posts were found for the tag(s) "${tags.join(" ")}".`);
 
 		// this makes the original files
 		this.cache.update(tags, [], folder);
+		this.current.totalWithSkipped = p.length;
 
 		// I wanted to do a for loop, but it continued on before the loop got done
 		// and this doesn't require splicing, which can be messy
@@ -259,18 +263,21 @@ class E621Downloader extends EventEmitter<Events> {
 			if (fs.existsSync(`${this.options.saveDirectory}/${folder}${post.id}.${post.ext}`) && !this.options.overwriteExisting) {
 				this.addToCache(post);
 				this.emit("skip", post.id, "fileExists");
+				this.current.skipped++;
 				return false;
 			}
 
 			if (post.ext === "swf" && this.options.skipFlash) {
 				this.addToCache(post);
 				this.emit("skip", post.id, "flash");
+				this.current.skipped++;
 				return false;
 			}
 
 			if (post.ext === "webm" && this.options.skipVideo) {
 				this.addToCache(post);
 				this.emit("skip", post.id, "video");
+				this.current.skipped++;
 				return false;
 			}
 
@@ -278,6 +285,7 @@ class E621Downloader extends EventEmitter<Events> {
 				if (blacklistedTags!.includes(t.toLowerCase())) {
 					this.addToCache(post);
 					this.emit("skip", post.id, "blacklisted", t);
+					this.current.skipped++;
 					return false;
 				}
 			}
@@ -346,6 +354,7 @@ class E621Downloader extends EventEmitter<Events> {
 			resolve: null,
 			reject: null,
 			total: 0,
+			totalWithSkipped: 0,
 			postsPerWorker: new Map(),
 			start: 0,
 			end: 0,
@@ -354,7 +363,8 @@ class E621Downloader extends EventEmitter<Events> {
 			folder,
 			done: [],
 			threadCount: 0,
-			finishedCount: 0
+			finishedCount: 0,
+			skipped: 0
 		};
 	}
 
@@ -425,7 +435,7 @@ class E621Downloader extends EventEmitter<Events> {
 	 */
 	private async complete(p = true) {
 		this.current.end = performance.now();
-		this.emit("download-done", this.current.total, parseFloat((this.current.end - this.current.start).toFixed(3)));
+		this.emit("download-done", this.current.total, this.current.skipped, parseFloat((this.current.end - this.current.start).toFixed(3)));
 		if (this.options.useCache) this.cache.update(this.current.tags, this.current.posts, this.current.folder || this.current.tags[0]);
 		if (p) {
 			if (!this.current.resolve) {

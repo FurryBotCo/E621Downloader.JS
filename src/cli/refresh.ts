@@ -60,9 +60,9 @@ function refresh(o: { [k: string]: any; }) {
 								"unknown reasons"
 				}.`); */
 		})
-		.on("download-done", (total, time) => {
+		.on("download-done", (total, skipped, time) => {
 			p.stop();
-			log(`Finished downloading ${total} posts in ${ms(time, true)}`);
+			log(`Finished downloading ${total} posts (skipped ${skipped}) in ${ms(time, true)}`);
 		})
 		.on("fetch-page", (page, count, time) => log(`Finished fetching page #${page} in ${ms(time, true)} (had ${count} posts)`))
 		.on("download-start", (tags, folder, dir, threads) => {
