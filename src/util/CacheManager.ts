@@ -1,18 +1,18 @@
+import CacheConverter from "./CacheConverter";
+import E621Downloader from "..";
 import * as fs from "fs-extra";
 import { EventEmitter } from "tsee";
-import E621Downloader from "..";
 import { v4 as uuid } from "uuid";
-import CacheConverter from "./CacheConverter";
 import path from "path";
 
 export interface Cache {
 	version: typeof CacheManager["VERSION"];
-	data: {
+	data: Array<{
 		id: string;
-		tags: string[];
+		tags: Array<string>;
 		lastDownloaded: number;
 		lastFolder: string;
-	}[];
+	}>;
 }
 
 export interface CachePostWithoutInfo {
@@ -32,8 +32,8 @@ export interface CachePostWithInfo {
 		fav: number;
 		score: number;
 		rating: "s" | "q" | "e";
-		sources: string[];
-		tags: string[];
+		sources: Array<string>;
+		tags: Array<string>;
 	};
 }
 
@@ -47,7 +47,7 @@ class OwOError extends Error {
 }
 
 export default class CacheManager extends EventEmitter<{
-	"error": (err: Error | string, extra?: any, threadId?: number) => void;
+	"error": (err: Error | string, extra?: unknown, threadId?: number) => void;
 	"warn": (info: string, threadId?: number) => void;
 	"debug": (info: string, threadId?: number) => void;
 }> {
@@ -73,29 +73,30 @@ export default class CacheManager extends EventEmitter<{
 	}
 
 	loc(type: "main" | "data"): string;
-	loc(type: "tags", tags: string[]): string | undefined;
-	loc(type: "main" | "data" | "tags", tags?: string[]) {
+	loc(type: "tags", tags: Array<string>): string | undefined;
+	loc(type: "main" | "data" | "tags", tags?: Array<string>) {
 		switch (type) {
 			case "main": return `${this.folder}/main.json`;
 			case "data": return `${this.folder}/data`;
 			case "tags": {
-				tags = tags!.map(t => t.toLowerCase().trim());
-				const id = this.get().data.find(v => v.tags.join(" ") === tags!.join(""))?.id;
+				tags = tags!.map((t) => t.toLowerCase().trim());
+				const id = this.get().data.find((v) => v.tags.join(" ") === tags!.join(""))?.id;
 				if (!id) return undefined;
 				else return `${this.loc("data")}/${id}.json`;
-			};
+			}
 		}
 	}
 
 	get(fix = true): Cache {
 		let o: Cache, v: number;
 		try {
-			o = fs.readJSONSync(this.loc("main"))
+			o = fs.readJSONSync(this.loc("main")) as Cache;
 			if (typeof o.version !== "number") throw new OwOError("OwO *notices your invalid cache file*");
 			v = o.version;
+			// eslint-disable-next-line @typescript-eslint/restrict-template-expressions
 			if (o.version !== CacheManager.VERSION) throw new TypeError(`Unsupported cache file version: ${o.version}`);
 		} catch (e) {
-			if (e.message.indexOf("file version") !== -1) {
+			if ((e as Error).message.indexOf("file version") !== -1) {
 				if (this.autoConvert) {
 					this.emit("warn", `The cache file version ${v!} is no longer supported. We're attempting to automatically convert it for you..`);
 					CacheConverter.fromUnknown(path.resolve(`${this.loc("data")}/../`));
@@ -107,21 +108,23 @@ export default class CacheManager extends EventEmitter<{
 					if (fs.existsSync(this.loc("data"))) fs.renameSync(this.loc("data"), `${this.loc("data")}.${d}.unsupported`);
 					fs.mkdirpSync(this.loc("data"));
 				}
-			} else if (e.message.indexOf("ENOENT") !== -1) this.emit("warn", "Cache file does not exist, creating it..");
+			} else if ((e as Error).message.indexOf("ENOENT") !== -1) this.emit("warn", "Cache file does not exist, creating it..");
 			else console.error("Error parsing cache file:", e);
 			if (fs.existsSync(this.loc("main"))) fs.renameSync(this.loc("main"), `${this.loc("main").replace(/\.json/, "")}-${Date.now()}.error.json`);
 			let d: Cache["data"];
 			// this assumes the file is using the old `{ key: string[] }` format
-			if (e instanceof OwOError && o!) d = Object.keys(o as any).map(v => {
-				const id = uuid();
-				fs.writeFileSync(`${this.loc("data")}/${id}.json`, "[]");
-				return {
-					id,
-					tags: v.split(" "),
-					lastDownloaded: 0, // we could *maybe* figure this out but it's easier to just not
-					lastFolder: E621Downloader.sanitizeFolderName(v.split(" ")[0]) // we make it the tags because we don't know what it was
-				};
-			});
+			if (e instanceof OwOError && o!) {
+				d = Object.keys(o).map((t) => {
+					const id = uuid();
+					fs.writeFileSync(`${this.loc("data")}/${id}.json`, "[]");
+					return {
+						id,
+						tags: t.split(" "),
+						lastDownloaded: 0, // we could *maybe* figure this out but it's easier to just not
+						lastFolder: E621Downloader.sanitizeFolderName(t.split(" ")[0]) // we make it the tags because we don't know what it was
+					};
+				});
+			}
 
 			o = {
 				version: CacheManager.VERSION,
@@ -139,18 +142,17 @@ export default class CacheManager extends EventEmitter<{
 		return o;
 	}
 
-	getTagsInstance(tags: string[], lastFolder: string) {
-		tags = tags.map(t => t.toLowerCase().trim());
-		const id = uuid();
-		const j = {
-			id,
-			tags,
-			lastDownloaded: 0,
-			lastFolder
-		};
-
-		const c = this.get();
-		const g = c.data.find(v => v.tags.join(" ") === tags.join(" "));
+	getTagsInstance(tags: Array<string>, lastFolder: string) {
+		tags = tags.map((t) => t.toLowerCase().trim());
+		const id = uuid(),
+			j = {
+				id,
+				tags,
+				lastDownloaded: 0,
+				lastFolder
+			},
+			c = this.get(),
+			g = c.data.find((v) => v.tags.join(" ") === tags.join(" "));
 		if (g) return g;
 		c.data.push(j);
 		const fd = fs.openSync(this.loc("main"), "w+");
@@ -160,28 +162,27 @@ export default class CacheManager extends EventEmitter<{
 		return j;
 	}
 
-	update(tags: string[], posts: CachePost[], folder: string, last?: boolean) {
-		tags = tags.map(t => t.toLowerCase().trim());
+	update(tags: Array<string>, posts: Array<CachePost>, folder: string, last?: boolean) {
+		tags = tags.map((t) => t.toLowerCase().trim());
 		if (!tags || tags.length === 0 || tags.join(" ").trim().length === 0) {
-			const e = new Error(`[CacheManager] Zero tag cache update recieved.`)
+			const e = new Error("[CacheManager] Zero tag cache update recieved.");
 			this.emit("error", e);
 			throw e;
 			return;
 		}
 
-		const c = this.get();
-		const o = JSON.parse(JSON.stringify(c));
-		const j = c.data.find(v => v.tags.join(" ") === tags.join(" "));
-		// if (j) c.data.splice(c.data.indexOf(j), 1);
-		const v = this.getTagsInstance(tags, folder);
+		const c = this.get(),
+			o = JSON.parse(JSON.stringify(c)) as typeof c,
+			j = c.data.find((v) => v.tags.join(" ") === tags.join(" ")),
+			// if (j) c.data.splice(c.data.indexOf(j), 1);
+			v = this.getTagsInstance(tags, folder);
 		v.lastFolder = folder;
 		this.updatePosts(posts, tags);
 		let i: number;
 		if (j) {
 			i = c.data.indexOf(j);
 			c.data[c.data.indexOf(j)] = v;
-		}
-		else i = (c.data.push(v)) - 1;
+		} else i = (c.data.push(v)) - 1;
 		// just in case
 		c.data = this.uniqueOverall(...c.data);
 		if (last) c.data[i].lastDownloaded = Date.now();
@@ -196,8 +197,8 @@ export default class CacheManager extends EventEmitter<{
 		fs.closeSync(fd);
 	}
 
-	getPosts(tags: string[]) {
-		tags = tags.map(t => t.toLowerCase().trim());
+	getPosts(tags: Array<string>) {
+		tags = tags.map((t) => t.toLowerCase().trim());
 		const loc = this.loc("tags", tags);
 		if (!loc) throw new TypeError(`Unable to determine cache location for tag(s) "${tags.join(" ")}"`);
 		if (!fs.existsSync(loc)) {
@@ -205,9 +206,9 @@ export default class CacheManager extends EventEmitter<{
 			fs.writeFileSync(loc, "[]");
 		}
 		const v = fs.readFileSync(loc).toString();
-		let d: CachePost[];
+		let d: Array<CachePost>;
 		try {
-			d = JSON.parse(v);
+			d = JSON.parse(v) as typeof d;
 		} catch (e) {
 			fs.moveSync(loc, `${loc}.old`);
 			this.emit("error", `Cache file "${loc}" could not be parsed, moving it and starting fresh.`);
@@ -218,15 +219,14 @@ export default class CacheManager extends EventEmitter<{
 		return d;
 	}
 
-	updatePosts(posts: CachePost[], tags: string[]): void {
+	updatePosts(posts: Array<CachePost>, tags: Array<string>): void {
 		const loc = this.loc("tags", tags);
 		if (!loc) throw new TypeError(`Unable to determine cache location for tag(s) "${tags.join(" ")}"`);
-		const d = this.getPosts(tags);
-
-		const j = this.uniquePosts(...[
-			...d,
-			...posts
-		]);
+		const d = this.getPosts(tags),
+			j = this.uniquePosts(...[
+				...d,
+				...posts
+			]);
 		if (JSON.stringify(d) === JSON.stringify(j)) {
 			this.emit("debug", "[CacheManager/updatePosts] Skipping file write due to no changes");
 			return;
@@ -239,44 +239,49 @@ export default class CacheManager extends EventEmitter<{
 		return;
 	}
 
-	uniqueOverall<T>(...v: T[]): T[] {
+	uniqueOverall<T>(...v: Array<T>): Array<T> {
+		// eslint-disable-next-line
 		if (Array.isArray(v[0])) v = [...(v as any)[0]];
 		// we have to stringify & parse because of objects and such
-		return Array.from(new Set(v.map(j => JSON.stringify(j))).values()).map(v => JSON.parse(v));
+		// eslint-disable-next-line
+		return Array.from(new Set(v.map((j) => JSON.stringify(j))).values()).map((v) => JSON.parse(v));
 	}
 
-	uniquePosts<T extends { id: number; }>(...v: T[]): T[] {
+	uniquePosts<T extends { id: number; }>(...v: Array<T>): Array<T> {
+		// eslint-disable-next-line
 		if (Array.isArray(v[0])) v = [...(v as any)[0]];
 		// we have to stringify & parse because of objects and such
-		const arr: T[] = Array.from(new Set(v.map(j => JSON.stringify(j))).values()).map(v => JSON.parse(v));
-		const id: { n: number; pos: number; }[] = [];
+		// eslint-disable-next-line
+		const arr: Array<T> = Array.from(new Set(v.map((j) => JSON.stringify(j))).values()).map((v) => JSON.parse(v)),
+			id: Array<{ n: number; pos: number; }> = [];
 		// we have to walk through it to remove instances that have changed slightly
 		for (const p of arr) {
-			const j = id.map(k => k.n);
-			const b = arr.indexOf(p);
+			const j = id.map((k) => k.n),
+				b = arr.indexOf(p);
 			if (j.includes(p.id)) {
-				const a = id.find(l => l.n === p.id)!.pos;
+				const a = id.find((l) => l.n === p.id)!.pos,
 
-				const c = JSON.stringify(arr[a]);
-				const d = JSON.stringify(arr[b]);
+					c = JSON.stringify(arr[a]),
+					d = JSON.stringify(arr[b]);
 
 				// prefer the longer one since it's likely newer
 				if (c.length > d.length) arr.splice(b, 1);
 				else arr.splice(a, 1);
+			} else {
+				id.push({
+					n: p.id,
+					pos: b
+				});
 			}
-			else id.push({
-				n: p.id,
-				pos: b
-			});
 		}
 
 		return arr;
 	}
 
-	isCached(id: number, tags: string[]) {
-		tags = tags.map(t => t.toLowerCase().trim());
+	isCached(id: number, tags: Array<string>) {
+		tags = tags.map((t) => t.toLowerCase().trim());
 		const c = this.getPosts(tags);
-		return c.map(v => v.id).includes(id);
+		return c.map((v) => v.id).includes(id);
 	}
 
 	// lowercase & trim
@@ -287,7 +292,7 @@ export default class CacheManager extends EventEmitter<{
 		};
 
 		c.data.map((v, i) => {
-			const t = v.tags.map(t => t.toLowerCase().trim());
+			const t = v.tags.map((tt) => tt.toLowerCase().trim());
 			if (v.tags.join(" ") !== t.join(" ")) c!.data[i].tags = t;
 		});
 

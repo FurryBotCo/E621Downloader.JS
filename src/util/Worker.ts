@@ -1,31 +1,32 @@
-import { parentPort, isMainThread } from "worker_threads";
 import { E621Downloader, Post } from "..";
-import * as fs from "fs-extra";
-import * as https from "https";
-import URL from "url";
 import * as pkg from "../../package.json";
+import * as fs from "fs-extra";
+import { AnyObject } from "@uwu-codes/utils";
+import { parentPort, isMainThread } from "worker_threads";
+import * as https from "https";
+import { URL } from "url";
 import { performance } from "perf_hooks";
 import "source-map-support/register";
 
-export type ThreadOptions = {
+export interface ThreadOptions {
 	id: number;
 	total: number;
-	tags: string[];
+	tags: Array<string>;
 	folder: string;
 	options: E621Downloader["options"];
 	dir: string;
-};
+}
 
 class Worker {
 	static id: number;
 	static total: number;
-	static tags: string[];
+	static tags: Array<string>;
 	static folder: string;
 	static options: E621Downloader["options"];
 	static dir: string;
-	static posts: Post[];
+	static posts: Array<Post>;
 	static processed = 0;
-	static donePosts: Post[];
+	static donePosts: Array<Post>;
 	static init(iOpt: ThreadOptions) {
 		this.id = iOpt.id;
 		this.total = iOpt.total;
@@ -38,16 +39,18 @@ class Worker {
 		this.sendToParent("ready", this.id + 1);
 	}
 
-	static async start(posts: Post[], range: [start: number, end: number]) {
+	static async start(posts: Array<Post>, range: [start: number, end: number]) {
 		this.posts = posts;
 		const start = performance.now();
 		if (posts.length === 0) this.sendToParent("warn", "I got zero posts?");
 		for (const [i, p] of posts.entries()) await this.download(p, [range[0] + i, range[1]]);
 		const end = performance.now();
-		if (this.processed !== this.posts.length) this.sendToParent("error", new Error(`Worker (${this.id}) finished before all posts were processed. Total: ${this.posts.length}, Processed: ${this.processed}`), {
-			total: this.posts.length,
-			processed: this.processed
-		});
+		if (this.processed !== this.posts.length) {
+			this.sendToParent("error", new Error(`Worker (${this.id}) finished before all posts were processed. Total: ${this.posts.length}, Processed: ${this.processed}`), {
+				total: this.posts.length,
+				processed: this.processed
+			});
+		}
 		this.sendToParent("thread-done", posts.length, parseFloat((end - start).toFixed(3)));
 		this.sendToParent("finished");
 	}
@@ -62,12 +65,12 @@ class Worker {
 			const start = performance.now();
 			https
 				.request({
-					...URL.parse(v!),
+					...new URL(v!),
 					headers: {
 						"User-Agent": `E621Downloader.JS/${pkg.version} (https://github.com/FurryBotCo/E621Downloader.JS)`
 					}
 				}, (res) => {
-					const data: Buffer[] = [];
+					const data: Array<Buffer> = [];
 					res
 						.on("error", b)
 						.on("data", (d) => data.push(d))
@@ -77,7 +80,7 @@ class Worker {
 							fs.writeFileSync(`${this.dir}/${id}.${ext}`, Buffer.concat(data));
 							this.sendToParent("post-finish", id, parseFloat((end - start).toFixed(3)), range[0], range[1], info);
 							return a();
-						})
+						});
 				})
 				.end();
 		});
@@ -87,7 +90,7 @@ class Worker {
 		return `https://static1.e621.net/data/${md5.slice(0, 2)}/${md5.slice(2, 4)}/${md5}.${ext}`;
 	}
 
-	static sendToParent(event: string, ...data: any[]) {
+	static sendToParent(event: string, ...data: Array<unknown>) {
 		parentPort!.postMessage({
 			event,
 			data,
@@ -99,10 +102,10 @@ class Worker {
 // figure out if we're actually in a worker
 if (!isMainThread) {
 	parentPort!
-		.on("message", (value) => {
+		.on("message", (value: { event: string; data: AnyObject; range: [start: number, end: number]; }) => {
 			switch (value.event) {
-				case "init": return Worker.init(value.data);
-				case "start": return Worker.start(value.data, value.range);
+				case "init": return Worker.init(value.data as unknown as ThreadOptions);
+				case "start": return Worker.start(value.data as unknown as Array<Post>, value.range);
 			}
 		});
 }

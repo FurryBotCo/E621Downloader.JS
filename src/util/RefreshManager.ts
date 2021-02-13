@@ -1,8 +1,8 @@
-import { EventEmitter } from "tsee";
 import E621Downloader from "..";
+import { EventEmitter } from "tsee";
 
 export default class RefreshManager extends EventEmitter<{
-	"error": (err: Error | string, extra?: any, threadId?: number) => void;
+	"error": (err: Error | string, extra?: unknown, threadId?: number) => void;
 	"warn": (info: string, threadId?: number) => void;
 	"debug": (info: string, threadId?: number) => void;
 }> {
@@ -12,8 +12,12 @@ export default class RefreshManager extends EventEmitter<{
 		this.main = main;
 	}
 
-	get cache() { return this.main.cache; }
-	get opt() { return this.main.options; }
+	get cache() {
+		return this.main.cache;
+	}
+	get opt() {
+		return this.main.options;
+	}
 
 	async run(threads?: Parameters<E621Downloader["startDownload"]>[2]) {
 		if (!this.cache) throw new TypeError("Missing CacheManager instance.");
@@ -22,8 +26,8 @@ export default class RefreshManager extends EventEmitter<{
 		// we do this so we can refresh the cache
 		const o = !!this.opt.overwriteExisting;
 		this.opt.overwriteExisting = true;
-		const res: {
-			tags: string[];
+		const res: Array<{
+			tags: Array<string>;
 			total: {
 				old: number;
 				new: number;
@@ -34,13 +38,13 @@ export default class RefreshManager extends EventEmitter<{
 				total: number;
 			};
 			error: Error | null;
-		}[] = [];
+		}> = [];
 		let cur = 0, i = 0;
 		const d = Date.now();
 		for await (const { tags: tg, lastFolder, lastDownloaded } of c.data) {
 			i++;
-			const tags = tg.map(t => t.toLowerCase().trim());
-			const posts = this.cache.getPosts(tags);
+			const tags = tg.map((t) => t.toLowerCase().trim()),
+				posts = this.cache.getPosts(tags);
 			console.log(`[${i}/${c.data.length}] Running a refresh with the tag${tags.length === 1 ? "" : "s"} "${tags.join(" ")}"`);
 			if (lastDownloaded !== 0 && (lastDownloaded + 8.64e+7) > d) {
 				console.log(`Skipping refresh with the tag${tags.length === 1 ? "" : "s"} "${tags.join(" ")}", due to the "lastDownloaded" timestmap being less than 24 hours.`);
@@ -64,7 +68,7 @@ export default class RefreshManager extends EventEmitter<{
 						error: null
 					});
 				})
-				.catch(async (err) => {
+				.catch((err) => {
 					const end = Date.now();
 					res.push({
 						tags,
@@ -77,7 +81,7 @@ export default class RefreshManager extends EventEmitter<{
 							end,
 							total: end - cur
 						},
-						error: err
+						error: err as Error
 					});
 				});
 		}

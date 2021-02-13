@@ -1,14 +1,15 @@
+/* eslint-disable @typescript-eslint/no-namespace */
 import * as fs from "fs-extra";
 export namespace V2Structure {
 	// main.json
 	export interface Main {
 		version: 2;
-		data: {
+		data: Array<{
 			id: string;
 			tags: string;
 			lastDownloaded: number;
 			lastFolder: string;
-		}[];
+		}>;
 	}
 
 	// array
@@ -23,12 +24,12 @@ export namespace V3Structure {
 	// main.json
 	export interface Main {
 		version: 3;
-		data: {
+		data: Array<{
 			id: string;
 			tags: string;
 			lastDownloaded: number;
 			lastFolder: string;
-		}[];
+		}>;
 	}
 
 	// array
@@ -42,8 +43,8 @@ export namespace V3Structure {
 			fav: number;
 			score: number;
 			rating: "s" | "q" | "e";
-			sources: string[];
-			tags: string[];
+			sources: Array<string>;
+			tags: Array<string>;
 		};
 	}
 }
@@ -67,11 +68,11 @@ export default class CacheConverter {
 	static fromV2(dir: string) {
 		const dt = Date.now();
 		if (!fs.existsSync(`${dir}/main.json`)) throw new TypeError("Could not find main.json inside the provided directory.");
-		const main = fs.readJsonSync(`${dir}/main.json`) as V2Structure.Main;
-		const nMain = {
-			...main,
-			version: 3
-		} as V3Structure.Main;
+		const main = fs.readJsonSync(`${dir}/main.json`) as V2Structure.Main,
+			nMain = {
+				...main,
+				version: 3
+			} as V3Structure.Main;
 		fs.mkdirpSync(`${dir}/data-new`);
 		let dataConverted = 0;
 		if (!fs.existsSync(`${dir}/data`)) console.warn("Could not find data directory inside the specified directory, not converting data files.");
@@ -80,13 +81,13 @@ export default class CacheConverter {
 				if (!fs.existsSync(`${dir}/data/${d.id}.json`)) console.warn(`Could not find data file for "${d.id}" inside the data folder, inside the provided directory. This entry will be removed from the converted files.`);
 				else {
 					dataConverted++;
-					const r = fs.readJSONSync(`${dir}/data/${d.id}.json`) as (V2Structure.Data | V3Structure.Data)[];
-					const l = r.map(v => ({
-						id: v.id,
-						ext: (v as V3Structure.Data).ext || null,
-						md5: v.md5,
-						info: (v as V3Structure.Data).info || null
-					}));
+					const r = fs.readJSONSync(`${dir}/data/${d.id}.json`) as Array<V2Structure.Data | V3Structure.Data>,
+						l = r.map((v) => ({
+							id: v.id,
+							ext: (v as V3Structure.Data).ext || null,
+							md5: v.md5,
+							info: (v as V3Structure.Data).info || null
+						}));
 					fs.writeJSONSync(`${dir}/data-new/${d.id}.json`, l);
 				}
 			}
@@ -103,7 +104,8 @@ export default class CacheConverter {
 		console.log(`Successfully converted files in "${dir}" from CacheV2 to CacheV3, a total of ${dataConverted} data files were converted.`);
 	}
 
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	static fromV3(dir: string) {
-		console.log(`Cache is already the latest version, no conversion needed.`);
+		console.log("Cache is already the latest version, no conversion needed.");
 	}
 }

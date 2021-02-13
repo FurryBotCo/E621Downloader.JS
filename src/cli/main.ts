@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 
-import { program } from "commander";
 import pkg from "../../package.json";
+import { program } from "commander";
+import { ModuleImport } from "@uwu-codes/utils";
 
 program
 	.storeOptionsAsProperties(true)
-	.version(pkg.version)
+	.version(pkg.version);
 
 program
 	.command("download")
@@ -23,7 +24,8 @@ program
 	.option("--use-cache", "If the cache file should be used")
 	.option("--folder", "The folder inside of saveDirectory to save this download inside. Defaults to first tag.")
 	.option("--threads <num>", "The number of threads to use while downloading. A number between 1 and 3.", "1")
-	.action((opts) => require("./downloader").default(opts));
+	// eslint-disable-next-line @typescript-eslint/no-var-requires
+	.action((opts) => (require("./downloader") as ModuleImport<(a: null) => void>).default(opts));
 
 program
 	.command("refresh")
@@ -38,7 +40,8 @@ program
 	.option("--tag-blacklist <tags>", "Space separated list of tags that should be skipped while downloading posts")
 	.option("--cache-file <file>", "The location to stort the cache file.")
 	.option("--threads <num>", "The number of threads to use while downloading. A number between 1 and 3.", "1")
-	.action((opts) => require("./refresh").default(opts));
+	// eslint-disable-next-line @typescript-eslint/no-var-requires
+	.action((opts) => (require("./refresh") as ModuleImport<(a: null) => void>).default(opts));
 
 program
 	.command("convert")
@@ -46,7 +49,8 @@ program
 	.description("Convert old cache files into the new formats.")
 	.requiredOption("--dir <dir>", "The cache directory to convert.")
 	.option("--version <ver>", "The version to convert from (optional)")
-	.action((opts) => require("./convert").default(opts));
+	// eslint-disable-next-line @typescript-eslint/no-var-requires
+	.action((opts) => (require("./convert") as ModuleImport<(a: null) => void>).default(opts));
 
 program.parse(process.argv);
 
