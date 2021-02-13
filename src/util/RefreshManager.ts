@@ -1,5 +1,6 @@
 import E621Downloader from "..";
 import { EventEmitter } from "tsee";
+import { Time } from "@uwu-codes/utils";
 
 export default class RefreshManager extends EventEmitter<{
 	"error": (err: Error | string, extra?: unknown, threadId?: number) => void;
@@ -19,7 +20,17 @@ export default class RefreshManager extends EventEmitter<{
 		return this.main.options;
 	}
 
-	async run(threads?: Parameters<E621Downloader["startDownload"]>[2]) {
+	/**
+	 *
+	 * @param {(1 | 2 | 3)} [threads] - The number of threads to use
+	 * @param {number} [lastDownloadedThreshold=1] - The last downloaded threshold in DAYS
+	 * @returns
+	 */
+	async run(threads?: Parameters<E621Downloader["startDownload"]>[2], lastDownloadedThreshold?: number) {
+		if (lastDownloadedThreshold !== undefined) {
+			if (typeof lastDownloadedThreshold !== "number" || lastDownloadedThreshold < 0) lastDownloadedThreshold = 6.048e+8;
+			else lastDownloadedThreshold = lastDownloadedThreshold * 8.64e+7;
+		} else lastDownloadedThreshold = 6.048e+8;
 		if (!this.cache) throw new TypeError("Missing CacheManager instance.");
 		const c = this.cache.get();
 		if (c.data.length === 0) throw new TypeError("No cached tags to refresh.");
@@ -41,13 +52,15 @@ export default class RefreshManager extends EventEmitter<{
 		}> = [];
 		let cur = 0, i = 0;
 		const d = Date.now();
+		if (lastDownloadedThreshold) console.log(`Skipping any tags which have been refreshed within the last ${Time.ms(lastDownloadedThreshold)}`);
+		else console.log("lastDownloadedThreshold was not provided, or less than one day, so it will not be used.");
 		for await (const { tags: tg, lastFolder, lastDownloaded } of c.data) {
 			i++;
 			const tags = tg.map((t) => t.toLowerCase().trim()),
 				posts = this.cache.getPosts(tags);
 			console.log(`[${i}/${c.data.length}] Running a refresh with the tag${tags.length === 1 ? "" : "s"} "${tags.join(" ")}"`);
-			if (lastDownloaded !== 0 && (lastDownloaded + 8.64e+7) > d) {
-				console.log(`Skipping refresh with the tag${tags.length === 1 ? "" : "s"} "${tags.join(" ")}", due to the "lastDownloaded" timestmap being less than 24 hours.`);
+			if (lastDownloadedThreshold && lastDownloaded !== 0 && (lastDownloaded + lastDownloadedThreshold) > d) {
+				console.log(`Skipping refresh with the tag${tags.length === 1 ? "" : "s"} "${tags.join(" ")}", due to the "lastDownloaded" timestamp being less than ${Time.ms(lastDownloadedThreshold)} ago.`);
 				continue;
 			}
 			cur = Date.now();

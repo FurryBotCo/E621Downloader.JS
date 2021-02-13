@@ -40,6 +40,7 @@ program
 	.option("--tag-blacklist <tags>", "Space separated list of tags that should be skipped while downloading posts")
 	.option("--cache-file <file>", "The location to stort the cache file.")
 	.option("--threads <num>", "The number of threads to use while downloading. A number between 1 and 3.", "1")
+	.option("--last-downloaded-threshold <num>", "The number in DAYS to check for last downloaded timestamps. 7 days default, provide 0 to disable.")
 	// eslint-disable-next-line @typescript-eslint/no-var-requires
 	.action((opts) => (require("./refresh") as ModuleImport<(a: null) => void>).default(opts));
 

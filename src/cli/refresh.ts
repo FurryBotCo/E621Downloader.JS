@@ -4,7 +4,7 @@ import E621Downloader, { Options } from "..";
 import progress from "cli-progress";
 import { Time } from "@uwu-codes/utils";
 
-export default function refresh(o: Options & { tagBlacklist: string; username: string; apiKey: string; tags: string; folder: string; threads: number; }) {
+export default function refresh(o: Options & { tagBlacklist: string; username: string; apiKey: string; tags: string; folder: string; threads: number; lastDownloadedThreshold: number; }) {
 	const options: Options = {
 		saveDirectory: o.saveDirectory,
 		skipVideo: o.skipVideo,
@@ -69,7 +69,7 @@ export default function refresh(o: Options & { tagBlacklist: string; username: s
 		.on("thread-spawn", (id, workerId) => log(`Spawned thread #${id} (Worker ID: ${workerId})`));
 
 	// eslint-disable-next-line @typescript-eslint/no-floating-promises
-	e.refresh.run(Number(o.threads) as (1 | 2 | 3)).then((r) => {
+	e.refresh.run(Number(o.threads) as (1 | 2 | 3), o.lastDownloadedThreshold).then((r) => {
 		for (const v of r) console.log(`[${v.tags.join(" ")}]: ${v.total.old === v.total.new ? "No Change." : `+${v.total.new - v.total.old}`}`);
 	});
 }
