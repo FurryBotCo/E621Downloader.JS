@@ -62,10 +62,13 @@ class Worker {
 		if (v === null) v = this.constructURLFromMD5(md5, ext);
 
 		return new Promise<void>((a, b) => {
-			const start = performance.now();
+			const r = new URL(v!),
+				start = performance.now();
 			https
 				.request({
-					...new URL(v!),
+					method: "GET",
+					host: r.host,
+					path: r.pathname,
 					headers: {
 						"User-Agent": `E621Downloader.JS/${pkg.version} (https://github.com/FurryBotCo/E621Downloader.JS)`
 					}
