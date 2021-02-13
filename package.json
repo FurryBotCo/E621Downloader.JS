@@ -4,7 +4,7 @@
 	"description": "",
 	"main": "build/src/index.js",
 	"scripts": {
-		"prepare": "rm -rf build && npm run lint && tsc && cp src/Other/Types.d.ts build/src/Other/ && echo Build Finished",
+		"prepare": "rm -rf build && npm run lint && tsc && echo Build Finished",
 		"build": "npm run prepare",
 		"lint": "eslint . --ext .ts --fix"
 	},
