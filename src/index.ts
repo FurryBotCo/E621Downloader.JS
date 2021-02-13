@@ -460,7 +460,7 @@ class E621Downloader extends EventEmitter<Events> {
 
 			// internal event only
 			case "finished": {
-				this.cache.update(this.current.tags, this.convertToCacheFormat(this.current.done), this.current.folder!, true);
+				this.cache.update(this.current.tags, this.convertToCacheFormat(this.current.done), this.current.folder!);
 				return this.endHandler(value.fromId);
 				break;
 			}

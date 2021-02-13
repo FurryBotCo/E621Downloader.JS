@@ -52,7 +52,7 @@ export default class RefreshManager extends EventEmitter<{
 		}> = [];
 		let cur = 0, i = 0;
 		const d = Date.now();
-		if (lastDownloadedThreshold) console.log(`Skipping any tags which have been refreshed within the last ${Time.ms(lastDownloadedThreshold)}`);
+		if (lastDownloadedThreshold) console.log(`Skipping any tags which have been refreshed within the last ${Time.ms(lastDownloadedThreshold, true)}`);
 		else console.log("lastDownloadedThreshold was not provided, or less than one day, so it will not be used.");
 		for await (const { tags: tg, lastFolder, lastDownloaded } of c.data) {
 			i++;
@@ -60,7 +60,7 @@ export default class RefreshManager extends EventEmitter<{
 				posts = this.cache.getPosts(tags);
 			console.log(`[${i}/${c.data.length}] Running a refresh with the tag${tags.length === 1 ? "" : "s"} "${tags.join(" ")}"`);
 			if (lastDownloadedThreshold && lastDownloaded !== 0 && (lastDownloaded + lastDownloadedThreshold) > d) {
-				console.log(`Skipping refresh with the tag${tags.length === 1 ? "" : "s"} "${tags.join(" ")}", due to the "lastDownloaded" timestamp being less than ${Time.ms(lastDownloadedThreshold)} ago.`);
+				console.log(`Skipping refresh with the tag${tags.length === 1 ? "" : "s"} "${tags.join(" ")}", due to the "lastDownloaded" timestamp being less than ${Time.ms(lastDownloadedThreshold, true)} ago.`);
 				continue;
 			}
 			cur = Date.now();

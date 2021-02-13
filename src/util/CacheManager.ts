@@ -162,7 +162,7 @@ export default class CacheManager extends EventEmitter<{
 		return j;
 	}
 
-	update(tags: Array<string>, posts: Array<CachePost>, folder: string, last?: boolean) {
+	update(tags: Array<string>, posts: Array<CachePost>, folder: string) {
 		tags = tags.map((t) => t.toLowerCase().trim());
 		if (!tags || tags.length === 0 || tags.join(" ").trim().length === 0) {
 			const e = new Error("[CacheManager] Zero tag cache update recieved.");
@@ -185,7 +185,7 @@ export default class CacheManager extends EventEmitter<{
 		} else i = (c.data.push(v)) - 1;
 		// just in case
 		c.data = this.uniqueOverall(...c.data);
-		if (last) c.data[i].lastDownloaded = Date.now();
+		c.data[i].lastDownloaded = Date.now();
 		// don't touch the file if we don't need to
 		if (JSON.stringify(c) === JSON.stringify(o)) {
 			this.emit("debug", "[CacheManager/updateMain] Skipping file write due to no changes");
