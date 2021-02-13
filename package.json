@@ -1,6 +1,6 @@
 {
 	"name": "e621downloader.js",
-	"version": "1.1.4",
+	"version": "1.1.5",
 	"description": "",
 	"main": "build/src/index.js",
 	"scripts": {
@@ -27,7 +27,7 @@
 	"homepage": "https://github.com/FurryBotCo/E621Downloader.JS#readme",
 	"dependencies": {
 		"@types/cli-progress": "^3.8.0",
-		"@uwu-codes/utils": "^1.0.11",
+		"@uwu-codes/utils": "^1.0.12",
 		"chunk": "0.0.3",
 		"cli-progress": "^3.9.0",
 		"commander": "^7.0.0",
