@@ -70,6 +70,6 @@ export default function refresh(o: Options & { tagBlacklist: string; username: s
 
 	// eslint-disable-next-line @typescript-eslint/no-floating-promises
 	e.refresh.run(Number(o.threads) as (1 | 2 | 3), o.lastDownloadedThreshold).then((r) => {
-		for (const v of r) console.log(`[${v.tags.join(" ")}]: ${v.total.old === v.total.new ? "No Change." : `+${v.total.new - v.total.old}`}`);
+		for (const v of r) console.log(`[${v.tags.join(" ")}]: ${v.total.old === v.total.new ? "No Change." : `+${v.total.old - v.total.new}`}`);
 	});
 }
