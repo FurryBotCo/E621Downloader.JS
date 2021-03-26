@@ -4,14 +4,15 @@ import E621Downloader, { Options } from "..";
 import progress from "cli-progress";
 import { Time } from "@uwu-codes/utils";
 
-export default function refresh(o: Options & { tagBlacklist: string; username: string; apiKey: string; tags: string; folder: string; threads: number; lastDownloadedThreshold: number; }) {
+export default function refresh(o: Options & { tagBlacklist: string; username: string; apiKey: string; tags: string; folder: string; threads: number; lastDownloadedThreshold: number; savePostInfo: boolean; }) {
 	const options: Options = {
 		saveDirectory: o.saveDirectory,
 		skipVideo: o.skipVideo,
 		skipFlash: o.skipFlash,
 		tagBlacklist: o.tagBlacklist && o.tagBlacklist.split(" "),
 		cacheDir: o.cacheDir,
-		useCache: true
+		useCache: true,
+		savePostInfo: o.savePostInfo
 	};
 
 	if (o.username && o.apiKey) {

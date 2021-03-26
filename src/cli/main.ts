@@ -24,6 +24,7 @@ program
 	.option("--use-cache", "If the cache file should be used")
 	.option("--folder", "The folder inside of saveDirectory to save this download inside. Defaults to first tag.")
 	.option("--threads <num>", "The number of threads to use while downloading. A number between 1 and 3.", "1")
+	.option("--save-post-info", "If extra info about posts should be saved.", false)
 	// eslint-disable-next-line @typescript-eslint/no-var-requires
 	.action((opts) => (require("./downloader") as ModuleImport<(a: null) => void>).default(opts));
 
@@ -38,9 +39,10 @@ program
 	.option("--skip-video", "If video files should be skipped.")
 	.option("--skip-flash", "If flash files should be skipped.")
 	.option("--tag-blacklist <tags>", "Space separated list of tags that should be skipped while downloading posts")
-	.option("--cache-file <file>", "The location to stort the cache file.")
+	.option("--cache-dir <dir>", "The location of the cache directory.")
 	.option("--threads <num>", "The number of threads to use while downloading. A number between 1 and 3.", "1")
 	.option("--last-downloaded-threshold <num>", "The number in DAYS to check for last downloaded timestamps. 7 days default, provide 0 to disable.")
+	.option("--save-post-info", "If extra info about posts should be saved.", false)
 	// eslint-disable-next-line @typescript-eslint/no-var-requires
 	.action((opts) => (require("./refresh") as ModuleImport<(a: null) => void>).default(opts));
 

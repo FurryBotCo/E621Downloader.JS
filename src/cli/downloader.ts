@@ -5,7 +5,7 @@ import E621Downloader, { Options } from "..";
 import progress from "cli-progress";
 import { Time } from "@uwu-codes/utils";
 
-export default function downloader(o: Options & { tagBlacklist: string; username: string; apiKey: string; tags: string; folder: string; threads: number; }) {
+export default function downloader(o: Options & { tagBlacklist: string; username: string; apiKey: string; tags: string; folder: string; threads: number; savePostInfo: boolean; }) {
 	const options: Options = {
 		saveDirectory: o.saveDirectory,
 		overwriteExisting: o.overwriteExisting,
@@ -13,7 +13,8 @@ export default function downloader(o: Options & { tagBlacklist: string; username
 		skipFlash: o.skipFlash,
 		tagBlacklist: o.tagBlacklist && o.tagBlacklist.split(" "),
 		cacheDir: o.cacheDir,
-		useCache: o.useCache
+		useCache: o.useCache,
+		savePostInfo: o.savePostInfo
 	};
 
 	if (o.username && o.apiKey) {
