@@ -1,9 +1,12 @@
 import E621Downloader from "../build/src";
 const e = new E621Downloader({
 	saveDirectory: `${__dirname}/files/E621Downloader/Files`,
-	overwriteExisting: false,
-	useCache: true,
-	savePostInfo: true
+	overwriteExisting: undefined,
+	skipVideo: undefined,
+	skipFlash: undefined,
+	tagBlacklist: undefined,
+	cacheDir: undefined,
+	savePostInfo: undefined
 });
 import { Time } from "@uwu-codes/utils";
 
@@ -45,7 +48,7 @@ process.nextTick(async () => {
 			console.log(`Started download with tags "${tags.join(" ")}" into directory "${dir}", with ${threads} threads.`);
 		})
 		.on("thread-spawn", (id, workerId) => console.log(`Spawned thread #${id} (Worker ID: ${workerId})`))
-		.startDownload(["joel_mustard"], "joel_mustard", 3);
+		.startDownload(["werewolf male/male -female"], undefined, 3);
 	console.log(v);
 	process.exit(0);
 });

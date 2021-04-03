@@ -240,13 +240,14 @@ class E621Downloader extends EventEmitter<Events> {
 	/**
 	 * Start a download.
 	 *
-	 * @param {string[]} tags - The tags to use.
+	 * @param {(string|string[])} tags - The tags to use.
 	 * @param {string} [folder] - The folder to save files to. (not a full path, put inside the Options.saveDirectory folder)
 	 * @param {(1 | 2 | 3)} [threads=1] - The number of simultaneous downloads to run. Hard limit of 3 maximum. This is the limit an e621 admin {@link https://e621.download/threads.png|asked us to use}. If you manually edit the code and get blocked, we do not take responsibility for that.
 	 * @param {string[]} [blacklistedTags] - Tags that will cause a post to be skipped if found on it.
 	 */
-	async startDownload(tags: Array<string>, folder?: string, threads: (1 | 2 | 3) = 1, blacklistedTags?: Array<string>) {
-		if (!tags || !Array.isArray(tags) || tags.length === 0 || tags.join(" ").length === 0) throw new TypeError("A list of tags is required.");
+	async startDownload(tags: string | Array<string>, folder?: string, threads: (1 | 2 | 3) = 1, blacklistedTags?: Array<string>) {
+		if (!Array.isArray(tags)) tags = tags.split(" ");
+		if (!tags || tags.length === 0 || tags.join(" ").length === 0) throw new TypeError("A list of tags is required.");
 		if (!blacklistedTags || !Array.isArray(blacklistedTags)) blacklistedTags = [];
 		// bravo if you manage to hit this without doing it on purpose, how specific do you need to be?
 		if (tags.length > 40) throw new E621Error("ERR_MAX_TAGS", "A maximum of 40 tags are allowed.");
@@ -264,7 +265,8 @@ class E621Downloader extends EventEmitter<Events> {
 
 		this.reset(folder);
 		for (let i = 0; i < threads; i++) {
-			const w = new Worker(`${__dirname}/util/Worker.${__filename.split(".").slice(-1)[0]}`);
+			// worker extensions MUST be js
+			const w = new Worker(`${__dirname}/util/Worker.js`);
 			this.threads.set(i, w);
 			w
 				.on("message", this.handleWorkerMessage.bind(this))

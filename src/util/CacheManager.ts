@@ -80,7 +80,7 @@ export default class CacheManager extends EventEmitter<{
 			case "data": return `${this.folder}/data`;
 			case "tags": {
 				tags = tags!.map((t) => t.toLowerCase().trim());
-				const id = this.get().data.find((v) => v.tags.join(" ") === tags!.join(""))?.id;
+				const id = this.get().data.find((v) => v.tags.join(" ") === tags!.join(" "))?.id;
 				if (!id) return undefined;
 				else return `${this.loc("data")}/${id}.json`;
 			}
@@ -200,7 +200,7 @@ export default class CacheManager extends EventEmitter<{
 	getPosts(tags: Array<string>) {
 		tags = tags.map((t) => t.toLowerCase().trim());
 		const loc = this.loc("tags", tags);
-		if (!loc) throw new TypeError(`Unable to determine cache location for tag(s) "${tags.join(" ")}"`);
+		if (!loc) throw new Error(`Unable to determine cache location for the tag(s) "${tags.join(" ")}"`);
 		if (!fs.existsSync(loc)) {
 			this.emit("warn", `cache file for tag(s) "${tags.join(" ")}" (${loc}) does not exist, creating it.`);
 			fs.writeFileSync(loc, "[]");
@@ -221,7 +221,7 @@ export default class CacheManager extends EventEmitter<{
 
 	updatePosts(posts: Array<CachePost>, tags: Array<string>): void {
 		const loc = this.loc("tags", tags);
-		if (!loc) throw new TypeError(`Unable to determine cache location for tag(s) "${tags.join(" ")}"`);
+		if (!loc) throw new Error(`Unable to determine cache location for the tag(s) "${tags.join(" ")}"`);
 		const d = this.getPosts(tags),
 			j = this.uniquePosts(...[
 				...d,
